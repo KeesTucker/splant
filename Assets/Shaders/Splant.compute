@@ -1,0 +1,35 @@
+#pragma kernel CSMain
+
+// Hash function from H. Schechter & R. Bridson, goo.gl/RXiKaH
+uint hash(uint s)
+{
+    s ^= 2747636419u;
+    s *= 2654435769u;
+    s ^= s >> 16;
+    s *= 2654435769u;
+    s ^= s >> 16;
+    s *= 2654435769u;
+    return s;
+}
+
+float random(uint seed)
+{
+    return float(hash(seed)) / 4294967295.0; // 2^32-1
+}
+
+struct cell
+{
+    float3 position;
+};
+
+AppendStructuredBuffer<cell> cells;
+float _Time;
+
+[numthreads(256,1,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    cell c;
+    c.position = float3(random(id.x + _Time) * 10 - 5, random(id.x * 314212 + _Time) * 10 - 5, random(id.x * 89217 + _Time) * 10 - 5);
+    cells.Append(c);
+}
+
