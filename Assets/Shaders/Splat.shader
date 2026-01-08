@@ -1,19 +1,23 @@
-﻿Shader "Unlit/Cells"
+﻿Shader "Unlit/GaussianSplats"
 {
     Properties
     {
-        _Colour("Colour", Color) =  (1,1,1,1)
+        _Colour("Colour", Color) = (1,1,1,1)
         _Size("Quad Size", Float) = 1
-        _Falloff("Quad Transparency Falloff", Float) = 20
+        _Falloff("Gaussian Falloff", Float) = 0.5
         _CamRight("Camera Right", Vector) = (1,0,0,0)
         _CamUp("Camera Up", Vector) = (0,1,0,0)
     }
     SubShader
     {
+        Tags { "Queue"="Transparent" "RenderType"="Transparent" }
+        
         Pass
         {
-            Blend SrcAlpha OneMinusSrcAlpha
+            // Proper alpha blending for accumulation
+            Blend One OneMinusSrcAlpha
             ZWrite Off
+            Cull Off
 
             HLSLPROGRAM
             #pragma target 4.5
@@ -69,10 +73,15 @@
 
             float4 frag(vs_out i) : SV_Target
             {
-                float dist = length(i.uv);
-                float alpha = exp(-dist * dist * _Falloff);
-                float4 c = _Colour;
-                c.w = alpha;
+                // Gaussian falloff
+                float dist2 = dot(i.uv, i.uv);
+                float alpha = exp(-dist2 * _Falloff);
+                
+                // Pre-multiply alpha for correct blending
+                float final_alpha = alpha * _Colour.a * 0.1;
+                float4 c;
+                c.rgb = _Colour.rgb * final_alpha;
+                c.a = final_alpha;
                 return c;
             }
             ENDHLSL

@@ -143,6 +143,7 @@ Material:
     - _AlphaRemapMin: 0
     - _AlphaSrcBlend: 1
     - _Anisotropy: 0
+    - _BaseOpacity: 3951
     - _BlendMode: 0
     - _CoatMask: 0
     - _CullMode: 2
@@ -170,7 +171,7 @@ Material:
     - _EnableFogOnTransparent: 1
     - _EnableGeometricSpecularAA: 0
     - _EnergyConservingSpecularColor: 1
-    - _Falloff: 76.5
+    - _Falloff: 50
     - _HeightAmplitude: 0.02
     - _HeightCenter: 0.5
     - _HeightMapParametrization: 0
@@ -204,7 +205,7 @@ Material:
     - _ReceivesSSR: 1
     - _ReceivesSSRTransparent: 0
     - _RefractionModel: 0
-    - _Size: 1.53
+    - _Size: 1
     - _Smoothness: 0.5
     - _SmoothnessRemapMax: 1
     - _SmoothnessRemapMin: 0
@@ -246,10 +247,10 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _CamRight: {r: 1, g: 0, b: 0, a: 0}
-    - _CamUp: {r: 0, g: 1, b: 0, a: 0}
+    - _CamRight: {r: 0.9000113, g: 0.000000019557774, b: -0.43586653, a: 0}
+    - _CamUp: {r: 0.018557582, g: 0.99909323, b: 0.03831919, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _Colour: {r: 0.42690805, g: 2.79544, b: 0.3420737, a: 1}
+    - _Colour: {r: 0.52558553, g: 3.4415908, b: 0.42114216, a: 0.007843138}
     - _DiffusionProfileAsset: {r: 0, g: 0, b: 0, a: 0}
     - _DoubleSidedConstants: {r: 1, g: 1, b: -1, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
