@@ -1,12 +1,7 @@
 #define THREAD_COUNT 1024
 #pragma kernel CSMain
 
-struct cell
-{
-    float4 color;
-    float3 position;
-    float age;
-};
+#include "Cell.hlsl"
 
 StructuredBuffer<uint> cell_count;
 StructuredBuffer<cell> cells_in;
@@ -17,6 +12,8 @@ float _Time;
 float _DeltaTime;
 float4 _NewColour;
 float4 _DeathColour;
+float3 _CameraPos;
+float3 _CameraForward;
 
 uint hash(uint s)
 {
@@ -38,7 +35,14 @@ bool ShouldSplit(cell c, uint id)
 {
     float r = random(id + (uint)(_Time * 1000));
     float agePenalty = exp(-c.age * 0.5); // Rapid dropoff
-    return r < 0.02 * agePenalty;
+    return r < 0.1 * agePenalty;
+}
+
+bool ShouldDie(cell c, uint id)
+{
+    float r = random(id + (uint)(_Time * 1000) + 12345); // decorrelate
+    float ageFactor = 1.0 - exp(-c.age * 0.5); // 0 → 1 as age increases
+    return r < 0.005 * ageFactor;
 }
 
 cell MakeChild(cell parent, uint id)
@@ -58,7 +62,7 @@ cell MakeChild(cell parent, uint id)
 [numthreads(THREAD_COUNT, 1, 1)]
 void CSMain(uint id : SV_DispatchThreadID)
 {
-    if (id > _MaxCells)
+    if (id >= _MaxCells)
     {
         return;
     }
@@ -71,13 +75,18 @@ void CSMain(uint id : SV_DispatchThreadID)
     cell parent = cells_in[id];
     
     parent.age += _DeltaTime;
+
+    if (ShouldDie(parent, id))
+    {
+        return;
+    }
     
     if (parent.age > 5)
     {
         return;
     }
     
-    float age_factor = exp(-parent.age * 0.4);
+    float age_factor = exp(-parent.age * 1);
     parent.color = lerp(_DeathColour, _NewColour, age_factor);
     
     cells_out.Append(parent);
@@ -91,4 +100,23 @@ void CSMain(uint id : SV_DispatchThreadID)
             cells_out.Append(child);
         }
     }
+}
+
+StructuredBuffer<cell> cells;
+RWStructuredBuffer<float> depthKeys;
+RWStructuredBuffer<uint> indices;
+
+#pragma kernel BuildDepthKeys
+
+[numthreads(256, 1, 1)]
+void BuildDepthKeys(uint id : SV_DispatchThreadID)
+{
+    if (id >= cell_count[0]) return;
+
+    cell c = cells[id];
+
+    float depth = dot(c.position - _CameraPos, _CameraForward);
+
+    depthKeys[id] = depth;
+    indices[id]   = id;
 }

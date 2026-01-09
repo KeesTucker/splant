@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using Structs;
 using UnityEngine;
+using GPUSorting;
+using GPUSorting.Runtime;
 
 public class SplantController : MonoBehaviour
 {
@@ -21,10 +23,14 @@ public class SplantController : MonoBehaviour
     private static readonly int DeathColourID  = Shader.PropertyToID("_DeathColour");
     private static readonly int FalloffID = Shader.PropertyToID("_Falloff");
     private static readonly int SizeID    = Shader.PropertyToID("_Size");
+    private static readonly int CameraPosID = Shader.PropertyToID("_CameraPos");
     private static readonly int CamRightID = Shader.PropertyToID("_CamRight");
     private static readonly int CamUpID    = Shader.PropertyToID("_CamUp");
+    private static readonly int CameraForwardID = Shader.PropertyToID("_CameraForward");
+
 
     [SerializeField] private ComputeShader compute;
+    [SerializeField] private ComputeShader sortCompute;
     [SerializeField] private Material material;
     [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 1000);
     [SerializeField] private uint maxCells = 100000;
@@ -34,15 +40,25 @@ public class SplantController : MonoBehaviour
     [ColorUsage(true, true)]
     [SerializeField] private Color newColour = Color.white;
     [ColorUsage(true, true)]
-    [SerializeField] private Color deathColour = Color.darkGreen;
+    [SerializeField] private Color deathColour = Color.green;
 
     private ComputeBuffer _cellsA;
     private ComputeBuffer _cellsB;
     private ComputeBuffer _cellCountBuffer;
     private ComputeBuffer _argsBuffer;
+    
+    ComputeBuffer _depthKeys;    // float
+    ComputeBuffer _indices;      // uint
+    
+    ComputeBuffer temp0;
+    ComputeBuffer temp1;
+    ComputeBuffer temp2;
+    ComputeBuffer temp3;
 
     private bool _swap;
     private Camera _mainCamera;
+    
+    DeviceRadixSort _deviceRadixSort;
 
     private void Awake()
     {
@@ -54,6 +70,19 @@ public class SplantController : MonoBehaviour
         _cellsB = new ComputeBuffer((int)maxCells, stride, ComputeBufferType.Append);
         _cellCountBuffer = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Structured);
         _argsBuffer = new ComputeBuffer(1, Args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
+        
+        _depthKeys = new ComputeBuffer((int)maxCells, sizeof(float));
+        _indices   = new ComputeBuffer((int)maxCells, sizeof(int));
+
+        _deviceRadixSort = new DeviceRadixSort(
+            compute: sortCompute,
+            allocationSize: (int)maxCells,
+            ref temp0,
+            ref temp1,
+            ref temp2,
+            ref temp3
+        );
+
     }
 
     private void Start()
@@ -76,6 +105,7 @@ public class SplantController : MonoBehaviour
         
         _cellCountBuffer.SetData(new[] { 1 });
         compute.SetBuffer(0, CellCountID, _cellCountBuffer);
+        compute.SetBuffer(1, CellCountID, _cellCountBuffer);
         compute.SetInt(MaxCellsID, (int)maxCells);
     }
 
@@ -85,6 +115,12 @@ public class SplantController : MonoBehaviour
         _cellsB?.Release();
         _cellCountBuffer.Release();
         _argsBuffer?.Release();
+        _depthKeys?.Release();
+        _indices?.Release();
+        temp0?.Release();
+        temp1?.Release();
+        temp2?.Release();
+        temp3?.Release();
     }
 
     private void Update()
@@ -101,16 +137,50 @@ public class SplantController : MonoBehaviour
         compute.SetVector(NewColourID, newColour);
         compute.SetVector(DeathColourID, deathColour);
         
-        ComputeBuffer.CopyCount(input, _cellCountBuffer, 0);
+        uint[] count = { 0 };
+        _cellCountBuffer.GetData(count);
         
-        var groups = Mathf.CeilToInt(maxCells / (float)ThreadsPerGroup);
+        var groups = Mathf.CeilToInt(count[0] / (float)ThreadsPerGroup);
         compute.Dispatch(0, Mathf.Max(groups, 1), 1, 1);
-
+        
         // Copy append count for rendering
         ComputeBuffer.CopyCount(output, _argsBuffer, sizeof(uint));
+        // Copy append count into a readable buffer
+        ComputeBuffer.CopyCount(output, _cellCountBuffer, 0);
+        
+        _cellCountBuffer.GetData(count);
+        var sortSize = (int)count[0];
+        
+        compute.SetBuffer(1, CellsID, output);
+        compute.SetBuffer(1, "depthKeys", _depthKeys);
+        compute.SetBuffer(1, "indices", _indices);
 
+        compute.SetVector(CameraPosID, _mainCamera.transform.position);
+        compute.SetVector(CameraForwardID, _mainCamera.transform.forward);
+
+        int depthGroups = Mathf.CeilToInt(sortSize / 256f);
+        compute.Dispatch(1, depthGroups, 1, 1);
+
+        System.Type typeOfKey = typeof(float);
+        System.Type typeOfPayload = typeof(uint);
+        
+        _deviceRadixSort.Sort(
+            sortSize,
+            _depthKeys,
+            _indices,
+            temp0,
+            temp1,
+            temp2,
+            temp3,
+            typeOfKey,
+            typeOfPayload,
+            false // back-to-front
+        );
+
+        
         // Material setup
         material.SetBuffer(CellsID, output);
+        material.SetBuffer("_SortedIndices", _indices);
         material.SetFloat(SizeID, size);
         material.SetFloat(FalloffID, falloff);
         material.SetVector(CamRightID, _mainCamera.transform.right);

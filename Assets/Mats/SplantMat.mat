@@ -171,7 +171,7 @@ Material:
     - _EnableFogOnTransparent: 1
     - _EnableGeometricSpecularAA: 0
     - _EnergyConservingSpecularColor: 1
-    - _Falloff: 0
+    - _Falloff: 50
     - _HeightAmplitude: 0.02
     - _HeightCenter: 0.5
     - _HeightMapParametrization: 0
@@ -247,8 +247,8 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _CamRight: {r: 0.9972115, g: 9.313226e-10, b: -0.07462727, a: 0}
-    - _CamUp: {r: -0.020219661, g: 0.9625957, b: -0.27018642, a: 0}
+    - _CamRight: {r: 1, g: 0, b: 0, a: 0}
+    - _CamUp: {r: 0, g: 1, b: 0, a: 0}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _Colour: {r: 0.22877438, g: 1.4980394, b: 0.18331276, a: 0.003921569}
     - _DiffusionProfileAsset: {r: 0, g: 0, b: 0, a: 0}
@@ -265,7 +265,6 @@ Material:
     - _UVMappingMask: {r: 1, g: 0, b: 0, a: 0}
     - _UVMappingMaskEmissive: {r: 1, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!114 &7599891460006264896
 MonoBehaviour:
   m_ObjectHideFlags: 11

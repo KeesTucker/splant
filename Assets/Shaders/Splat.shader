@@ -24,15 +24,11 @@
             #pragma fragment frag
 
             #include "UnityCG.cginc"
-
-            struct cell
-            {
-                float4 color;
-                float3 position;
-                float age;
-            };
+            
+            #include "Cell.hlsl"
 
             StructuredBuffer<cell> cells;
+            StructuredBuffer<int> _SortedIndices;
             
             float _Size;
             float _Falloff;
@@ -64,12 +60,14 @@
 
                 float2 offset = quad[quad_vertex] * _Size;
 
-                float3 pos = cells[cell_id].position;
+                cell c = cells[_SortedIndices[cell_id]];
+                
+                float3 pos = c.position;
                 float3 world = pos + _CamRight * offset.x + _CamUp * offset.y;
 
                 o.pos = UnityWorldToClipPos(float4(world,1));
                 o.uv = quad[quad_vertex];
-                o.color = cells[cell_id].color;
+                o.color = c.color;
                 return o;
             }
 
