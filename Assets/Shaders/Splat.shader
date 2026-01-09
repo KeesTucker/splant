@@ -2,10 +2,10 @@
 {
     Properties
     {
-        _Size("Quad Size", Float) = 1
-        _Falloff("Gaussian Falloff", Float) = 0.5
-        _CamRight("Camera Right", Vector) = (1,0,0,0)
-        _CamUp("Camera Up", Vector) = (0,1,0,0)
+        size("Quad Size", Float) = 1
+        falloff("Gaussian Falloff", Float) = 0.5
+        cam_right("Camera Right", Vector) = (1,0,0,0)
+        cam_up("Camera Up", Vector) = (0,1,0,0)
     }
     SubShader
     {
@@ -28,12 +28,12 @@
             #include "Cell.hlsl"
 
             StructuredBuffer<cell> cells;
-            StructuredBuffer<int> _SortedIndices;
+            StructuredBuffer<uint> sorted_indices;
             
-            float _Size;
-            float _Falloff;
-            float3 _CamRight;
-            float3 _CamUp;
+            float size;
+            float falloff;
+            float3 cam_right;
+            float3 cam_up;
 
             struct vs_out
             {
@@ -58,12 +58,12 @@
                     float2(-0.5,-0.5)
                 };
 
-                float2 offset = quad[quad_vertex] * _Size;
+                float2 offset = quad[quad_vertex] * size;
 
-                cell c = cells[_SortedIndices[cell_id]];
+                cell c = cells[sorted_indices[cell_id]];
                 
                 float3 pos = c.position;
-                float3 world = pos + _CamRight * offset.x + _CamUp * offset.y;
+                float3 world = pos + cam_right * offset.x + cam_up * offset.y;
 
                 o.pos = UnityWorldToClipPos(float4(world,1));
                 o.uv = quad[quad_vertex];
@@ -75,7 +75,7 @@
             {
                 // Gaussian falloff
                 float dist2 = dot(i.uv, i.uv);
-                float alpha = exp(-dist2 * _Falloff);
+                float alpha = exp(-dist2 * falloff);
                 
                 // Pre-multiply alpha for correct blending
                 float final_alpha = alpha * i.color.a * 0.1;

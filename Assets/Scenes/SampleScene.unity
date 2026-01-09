@@ -159,7 +159,7 @@ MonoBehaviour:
   size: 1
   falloff: 50
   newColour: {r: 0.17626214, g: 1, b: 0, a: 1}
-  deathColour: {r: 0.13207549, g: 0.07049713, b: 0.042986833, a: 1}
+  deathColour: {r: 0.010493895, g: 0.103773594, b: 0, a: 1}
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0

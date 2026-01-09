@@ -245,6 +245,8 @@ Material:
     - _ZTestGBuffer: 4
     - _ZTestTransparent: 4
     - _ZWrite: 1
+    - falloff: 50
+    - size: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _CamRight: {r: 1, g: 0, b: 0, a: 0}
@@ -264,6 +266,8 @@ Material:
     - _UVDetailsMappingMask: {r: 1, g: 0, b: 0, a: 0}
     - _UVMappingMask: {r: 1, g: 0, b: 0, a: 0}
     - _UVMappingMaskEmissive: {r: 1, g: 0, b: 0, a: 0}
+    - cam_right: {r: 1, g: 0, b: 0, a: 0}
+    - cam_up: {r: 0, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
 --- !u!114 &7599891460006264896
 MonoBehaviour:
