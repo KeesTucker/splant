@@ -408,10 +408,11 @@ MonoBehaviour:
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 1000, y: 1000, z: 1000}
-  maxCells: 10000000
+  maxCells: 1000000
   size: 1
   falloff: 50
-  colour: {r: 0.22877438, g: 1.4980394, b: 0.18331276, a: 0.003921569}
+  newColour: {r: 0.11164653, g: 1, b: 0, a: 1}
+  deathColour: {r: 0.58431375, g: 0.086930186, b: 0, a: 1}
 --- !u!1 &1823688464
 GameObject:
   m_ObjectHideFlags: 0

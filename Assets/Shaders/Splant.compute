@@ -1,8 +1,23 @@
 #define THREAD_COUNT 1024
-
 #pragma kernel CSMain
 
-// Hash function from H. Schechter & R. Bridson, goo.gl/RXiKaH
+struct cell
+{
+    float4 color;
+    float3 position;
+    float age;
+};
+
+StructuredBuffer<uint> cell_count;
+StructuredBuffer<cell> cells_in;
+AppendStructuredBuffer<cell> cells_out;
+
+uint _MaxCells;
+float _Time;
+float _DeltaTime;
+float4 _NewColour;
+float4 _DeathColour;
+
 uint hash(uint s)
 {
     s ^= 2747636419u;
@@ -16,33 +31,64 @@ uint hash(uint s)
 
 float random(uint seed)
 {
-    return float(hash(seed)) / 4294967295.0; // 2^32-1
+    return float(hash(seed)) / 4294967295.0;
 }
 
-struct cell
+bool ShouldSplit(cell c, uint id)
 {
-    float3 position;
-};
+    float r = random(id + (uint)(_Time * 1000));
+    float agePenalty = exp(-c.age * 0.5); // Rapid dropoff
+    return r < 0.02 * agePenalty;
+}
 
-AppendStructuredBuffer<cell> cells;
-RWStructuredBuffer<uint> cell_counter;
-uint _MaxCells;
-float _Time;
-
-[numthreads(THREAD_COUNT,1,1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+cell MakeChild(cell parent, uint id)
 {
-    uint originalCount;
-    InterlockedAdd(cell_counter[0], 1, originalCount);
-    
-    if (originalCount < _MaxCells)
+    cell child;
+    child.age = 0;
+    child.color = _NewColour;
+    float3 offset = float3(
+        random(id * 44317) - 0.5,
+        random(id * 3231) - 0.5,
+        random(id * 432457) - 0.5
+    );
+    child.position = parent.position + offset * 0.3;
+    return child;
+}
+
+[numthreads(THREAD_COUNT, 1, 1)]
+void CSMain(uint id : SV_DispatchThreadID)
+{
+    if (id > _MaxCells)
     {
-        cell c;
-        c.position = float3(
-            random(id.x + _Time * 100) * 10 - 5.5, 
-            random(id.x * 314212 + _Time * 100) * 10 - 5.5, 
-            random(id.x * 89217 + _Time * 100) * 10 - 5.5
-        );
-        cells.Append(c);
-   }
+        return;
+    }
+    
+    if (id >= cell_count[0])
+    {
+        return;
+    }
+    
+    cell parent = cells_in[id];
+    
+    parent.age += _DeltaTime;
+    
+    if (parent.age > 5)
+    {
+        return;
+    }
+    
+    float age_factor = exp(-parent.age * 0.4);
+    parent.color = lerp(_DeathColour, _NewColour, age_factor);
+    
+    cells_out.Append(parent);
+
+    // Optional split
+    if (cell_count[0] < _MaxCells * 0.95)
+    {
+        if (ShouldSplit(parent, id))
+        {
+            cell child = MakeChild(parent, id);
+            cells_out.Append(child);
+        }
+    }
 }

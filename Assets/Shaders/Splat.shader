@@ -2,7 +2,6 @@
 {
     Properties
     {
-        _Colour("Colour", Color) = (1,1,1,1)
         _Size("Quad Size", Float) = 1
         _Falloff("Gaussian Falloff", Float) = 0.5
         _CamRight("Camera Right", Vector) = (1,0,0,0)
@@ -28,12 +27,13 @@
 
             struct cell
             {
+                float4 color;
                 float3 position;
+                float age;
             };
 
             StructuredBuffer<cell> cells;
-
-            float4 _Colour;
+            
             float _Size;
             float _Falloff;
             float3 _CamRight;
@@ -43,6 +43,7 @@
             {
                 float4 pos : SV_POSITION;
                 float2 uv  : TEXCOORD0;
+                float4 color : COLOR;
             };
 
             vs_out vert(uint vid : SV_VertexID, uint iid : SV_InstanceID)
@@ -68,6 +69,7 @@
 
                 o.pos = UnityWorldToClipPos(float4(world,1));
                 o.uv = quad[quad_vertex];
+                o.color = cells[cell_id].color;
                 return o;
             }
 
@@ -78,9 +80,9 @@
                 float alpha = exp(-dist2 * _Falloff);
                 
                 // Pre-multiply alpha for correct blending
-                float final_alpha = alpha * _Colour.a * 0.1;
+                float final_alpha = alpha * i.color.a * 0.1;
                 float4 c;
-                c.rgb = _Colour.rgb * final_alpha;
+                c.rgb = i.color.rgb * final_alpha;
                 c.a = final_alpha;
                 return c;
             }
