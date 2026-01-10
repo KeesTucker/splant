@@ -5,8 +5,6 @@ StructuredBuffer<cell> cells_in;
 AppendStructuredBuffer<cell> cells_out;
 
 uint max_cells;
-float3 bounds_min;
-float3 bounds_max;
 float time;
 float delta_time;
 float4 new_colour;
@@ -114,72 +112,51 @@ void build_depth_keys(uint id : SV_DispatchThreadID)
     depth_indices[id]   = id;
 }
 
-#pragma kernel count_buckets
+#pragma kernel build_spatial_hash
 
-int3 grid_min;     // floor(bounds_min / bucket_size)
-int3 grid_dim;     // grid_max - grid_min + 1
-
-uint flatten_coord(int3 c)
-{
-    return (uint)(
-          c.x
-        + c.y * grid_dim.x
-        + c.z * grid_dim.x * grid_dim.y
-    );
-}
-
-RWStructuredBuffer<uint> bucket_count;
+RWStructuredBuffer<uint> cell_hashes;
+RWStructuredBuffer<uint> cell_indices;
 
 float bucket_size;
 
-[numthreads(256,1,1)]
-void count_buckets(uint id : SV_DispatchThreadID)
+[numthreads(256, 1, 1)]
+void build_spatial_hash(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
-
-    int3 bucket_coord = int3(floor(cells[id].position / bucket_size)) - grid_min;
-    bucket_coord = clamp(bucket_coord, int3(0,0,0), grid_dim - 1);
-
-    uint bucket = flatten_coord(bucket_coord);
-    InterlockedAdd(bucket_count[bucket], 1);
+    
+    cell c = cells[id];
+    int3 bucket = floor(c.position / bucket_size);
+    uint hash = hash_coord(bucket);
+    
+    cell_hashes[id] = hash;
+    cell_indices[id] = id;
 }
 
-#pragma kernel prefix_sum
+#pragma kernel build_bucket_ranges
 
 RWStructuredBuffer<uint> bucket_start;
+RWStructuredBuffer<uint> bucket_count;
 
-uint bucket_table_size; // grid_dim.x * grid_dim.y * grid_dim.z
+uint bucket_table_size;
 
 [numthreads(256, 1, 1)]
-void prefix_sum(uint id : SV_DispatchThreadID)
-{
-    if (id >= bucket_table_size) return;
-
-    // TODO: This is a bit slow. Look into it
-    uint sum = 0;
-    for (uint i = 0; i < id; i++)
-        sum += bucket_count[i];
-
-    bucket_start[id] = sum;
-}
-
-#pragma kernel fill_buckets
-
-RWStructuredBuffer<uint> bucket_indices;
-
-[numthreads(256,1,1)]
-void fill_buckets(uint id : SV_DispatchThreadID)
+void build_bucket_ranges(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
 
-    int3 bucket_coord = int3(floor(cells[id].position / bucket_size)) - grid_min;
-    bucket_coord = clamp(bucket_coord, int3(0,0,0), grid_dim - 1);
+    uint hash = cell_hashes[id];
+    uint bucket = hash & (bucket_table_size - 1);
 
-    uint bucket = flatten_coord(bucket_coord);
+    uint prevHash = (id > 0) ? cell_hashes[id - 1] : 0xffffffff;
 
-    uint offset;
-    InterlockedAdd(bucket_count[bucket], 1, offset);
-    bucket_indices[bucket_start[bucket] + offset] = id;
+    // First element of this hash group
+    if (id == 0 || hash != prevHash)
+    {
+        bucket_start[bucket] = id;
+    }
+
+    // Every element contributes to count
+    InterlockedAdd(bucket_count[bucket], 1);
 }
 
 #pragma kernel apply_forces
@@ -206,39 +183,41 @@ void apply_forces(uint id : SV_DispatchThreadID)
                     * air_pressure_strength
                     * pressure_dir;
     
-    int3 base_bucket = int3(floor(c.position / bucket_size)) - grid_min;
+    // Spatial hash repulsion
+    int3 base_bucket = floor(c.position / bucket_size);
 
     for (int z = -1; z <= 1; z++)
         for (int y = -1; y <= 1; y++)
             for (int x = -1; x <= 1; x++)
             {
                 int3 nb = base_bucket + int3(x, y, z);
-
-                // Skip out-of-bounds buckets
-                if (any(nb < 0) || any(nb >= grid_dim))
-                    continue;
-
-                uint bucket = flatten_coord(nb);
+                uint hash = hash_coord(nb);
+                uint bucket = hash & (bucket_table_size - 1);
 
                 uint start = bucket_start[bucket];
                 uint count = bucket_count[bucket];
 
+                if (count == 0) continue;
+
                 for (uint i = 0; i < count; i++)
                 {
-                    uint other_id = bucket_indices[start + i];
-                    if (other_id == id) continue;
+                    uint sortedIdx = start + i;
+                    uint otherId = cell_indices[sortedIdx];
 
-                    cell other = cells[other_id];
+                    if (otherId == id) continue;
+
+                    cell other = cells[otherId];
 
                     float3 delta = c.position - other.position;
-                    float dist_sq = dot(delta, delta);
+                    float distSq = dot(delta, delta);
 
-                    if (dist_sq > neighbor_radius_sq || dist_sq < 1e-6)
+                    if (distSq > neighbor_radius_sq || distSq < 1e-6)
                         continue;
 
-                    float dist = sqrt(dist_sq);
+                    float dist = sqrt(distSq);
                     float3 dir = delta / dist;
 
+                    // Smooth repulsion (stronger when closer)
                     float t = 1.0 - (dist / neighbor_radius);
                     float force = repulsion_strength * t * t;
 
@@ -248,8 +227,5 @@ void apply_forces(uint id : SV_DispatchThreadID)
     
     // Integrate
     c.position += accel * delta_time;
-    
-    c.position = clamp(c.position, bounds_min, bounds_max);
-    
     cells[id] = c;
 }

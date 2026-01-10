@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" afterDir="false" />
     </list>
@@ -102,7 +103,7 @@
       <workItem from="1767936619210" duration="109000" />
       <workItem from="1767940905750" duration="1915000" />
       <workItem from="1767947085204" duration="94000" />
-      <workItem from="1767982791528" duration="11945000" />
+      <workItem from="1767982791528" duration="9913000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -120,15 +121,7 @@
       <option name="project" value="LOCAL" />
       <updated>1767987110722</updated>
     </task>
-    <task id="LOCAL-00003" summary="feat: Implemented spatial hashing fully! Built bucket ranges succesfully! Implemented naive repulsion and air pressure so I can get a wobbly blob!!">
-      <option name="closed" value="true" />
-      <created>1768008000931</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1768008000931</updated>
-    </task>
-    <option name="localTasksCounter" value="4" />
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -157,8 +150,7 @@
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
     <MESSAGE value="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3" />
     <MESSAGE value="feat: Big cleanup and I have started implementing spatial hashing. Not complete but I just finished radix sorting the hashes. Still need to generate bucket ranges." />
-    <MESSAGE value="feat: Implemented spatial hashing fully! Built bucket ranges succesfully! Implemented naive repulsion and air pressure so I can get a wobbly blob!!" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: Implemented spatial hashing fully! Built bucket ranges succesfully! Implemented naive repulsion and air pressure so I can get a wobbly blob!!" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: Big cleanup and I have started implementing spatial hashing. Not complete but I just finished radix sorting the hashes. Still need to generate bucket ranges." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
