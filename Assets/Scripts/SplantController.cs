@@ -44,6 +44,8 @@ public class SplantController : MonoBehaviour
     private static readonly int NeighborRadiusID = Shader.PropertyToID("neighbor_radius");
     private static readonly int NeighborRadiusSqID = Shader.PropertyToID("neighbor_radius_sq");
     private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
+    private static readonly int MinPosID = Shader.PropertyToID("min_pos");
+    private static readonly int MaxPosID = Shader.PropertyToID("max_pos");
 
 
     [SerializeField] private ComputeShader compute;
@@ -60,11 +62,14 @@ public class SplantController : MonoBehaviour
     [SerializeField] private Color deathColour = Color.green;
     
     [Header("Spatial Hashing")]
+    [Tooltip("Must be >= neighborRadius * 1.5")]
     [SerializeField] private float bucketSize = 0.1f;
+    [Tooltip("Must be a power of 2")]
     [SerializeField] private int bucketTableSize = 1 << 18;
     
     [Header("Physics")] 
-    [SerializeField] private float neighborRadius = 0.1f; // <= bucketSize * 1.5
+    [Tooltip("Must be <= bucketSize * 1.5")]
+    [SerializeField] private float neighborRadius = 0.1f;
     [SerializeField] private float airPressureStrength = 1f;
     [SerializeField] private float repulsionStrength = 1f;
     
@@ -204,20 +209,6 @@ public class SplantController : MonoBehaviour
         cellCount = (int)count[0];
         threadGroups = Mathf.CeilToInt(cellCount / ThreadsPerGroup);
         
-        // Physics
-        compute.SetFloat(AirPressureStrengthID, airPressureStrength);
-        compute.SetBuffer(_applyForcesKernel, CellsID, output);
-        compute.SetBuffer(_applyForcesKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_applyForcesKernel, CellIndicesID, _cellIndices);
-        compute.SetBuffer(_applyForcesKernel, BucketStartID, _bucketStart);
-        compute.SetBuffer(_applyForcesKernel, BucketCountID, _bucketCount);
-        
-        compute.SetFloat(NeighborRadiusID, neighborRadius);
-        compute.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
-        compute.SetFloat(RepulsionStrengthID, repulsionStrength);
-        
-        compute.Dispatch(_applyForcesKernel, threadGroups, 1, 1);
-        
         // Depth sorting for splatting
         compute.SetBuffer(_buildDepthKernel, CellsID, output);
         compute.SetBuffer(_buildDepthKernel, DepthKeysID, _depthKeys);
@@ -272,8 +263,11 @@ public class SplantController : MonoBehaviour
         );
         
         // Generate bucket ranges
+        var starts = new uint[bucketTableSize];
+        for (var i = 0; i < starts.Length; i++)
+            starts[i] = 0xffffffff;
+        _bucketStart.SetData(starts);
         var zeros = new uint[bucketTableSize];
-        _bucketStart.SetData(zeros);
         _bucketCount.SetData(zeros);
 
         compute.SetBuffer(_buildBucketKernel, CellCountID, _cellCount);
@@ -282,6 +276,22 @@ public class SplantController : MonoBehaviour
         compute.SetBuffer(_buildBucketKernel, BucketCountID, _bucketCount);
         
         compute.Dispatch(_buildBucketKernel, threadGroups, 1, 1);
+        
+        // Physics
+        compute.SetFloat(AirPressureStrengthID, airPressureStrength);
+        compute.SetVector(MinPosID,bounds.min);
+        compute.SetVector(MaxPosID,bounds.max);
+        compute.SetBuffer(_applyForcesKernel, CellsID, output);
+        compute.SetBuffer(_applyForcesKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_applyForcesKernel, CellIndicesID, _cellIndices);
+        compute.SetBuffer(_applyForcesKernel, BucketStartID, _bucketStart);
+        compute.SetBuffer(_applyForcesKernel, BucketCountID, _bucketCount);
+        
+        compute.SetFloat(NeighborRadiusID, neighborRadius);
+        compute.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
+        compute.SetFloat(RepulsionStrengthID, repulsionStrength);
+        
+        compute.Dispatch(_applyForcesKernel, threadGroups, 1, 1);
         
         // Material setup
         material.SetBuffer(CellsID, output);

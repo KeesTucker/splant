@@ -165,6 +165,8 @@ float air_pressure_strength;
 float neighbor_radius;
 float neighbor_radius_sq;
 float repulsion_strength;
+float3 max_pos;
+float3 min_pos;
 
 [numthreads(256, 1, 1)]
 void apply_forces(uint id : SV_DispatchThreadID)
@@ -201,20 +203,22 @@ void apply_forces(uint id : SV_DispatchThreadID)
 
                 for (uint i = 0; i < count; i++)
                 {
-                    uint sortedIdx = start + i;
-                    uint otherId = cell_indices[sortedIdx];
+                    uint sorted_idx = start + i;
+                    if (sorted_idx >= cell_count[0]) continue;
+                    
+                    uint other_id = cell_indices[sorted_idx];
 
-                    if (otherId == id) continue;
+                    if (other_id == id) continue;
 
-                    cell other = cells[otherId];
+                    cell other = cells[other_id];
 
                     float3 delta = c.position - other.position;
-                    float distSq = dot(delta, delta);
+                    float dist_sq = dot(delta, delta);
 
-                    if (distSq > neighbor_radius_sq || distSq < 1e-6)
+                    if (dist_sq > neighbor_radius_sq || dist_sq < 1e-6)
                         continue;
 
-                    float dist = sqrt(distSq);
+                    float dist = sqrt(dist_sq);
                     float3 dir = delta / dist;
 
                     // Smooth repulsion (stronger when closer)
@@ -227,5 +231,6 @@ void apply_forces(uint id : SV_DispatchThreadID)
     
     // Integrate
     c.position += accel * delta_time;
+    c.position = clamp(c.position, min_pos, max_pos);
     cells[id] = c;
 }
