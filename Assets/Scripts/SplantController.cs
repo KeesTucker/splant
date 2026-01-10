@@ -62,13 +62,13 @@ public class SplantController : MonoBehaviour
     [SerializeField] private Color deathColour = Color.green;
     
     [Header("Spatial Hashing")]
-    [Tooltip("Must be >= neighborRadius * 1.5")]
+    [Tooltip("Must be >= neighborRadius")]
     [SerializeField] private float bucketSize = 0.1f;
     [Tooltip("Must be a power of 2")]
     [SerializeField] private int bucketTableSize = 1 << 18;
     
     [Header("Physics")] 
-    [Tooltip("Must be <= bucketSize * 1.5")]
+    [Tooltip("Must be <= bucketSize")]
     [SerializeField] private float neighborRadius = 0.1f;
     [SerializeField] private float airPressureStrength = 1f;
     [SerializeField] private float repulsionStrength = 1f;

@@ -161,10 +161,10 @@ MonoBehaviour:
   newColour: {r: 0.17626214, g: 1, b: 0, a: 1}
   deathColour: {r: 0.2830189, g: 0.05676955, b: 0, a: 1}
   bucketSize: 2
-  bucketTableSize: 131072
-  neighborRadius: 2.5
-  airPressureStrength: 0.05
-  repulsionStrength: 0.05
+  bucketTableSize: 262144
+  neighborRadius: 2
+  airPressureStrength: 0.1
+  repulsionStrength: 0.01
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0

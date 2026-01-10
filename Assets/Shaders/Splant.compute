@@ -118,6 +118,7 @@ RWStructuredBuffer<uint> cell_hashes;
 RWStructuredBuffer<uint> cell_indices;
 
 float bucket_size;
+uint bucket_table_size;
 
 [numthreads(256, 1, 1)]
 void build_spatial_hash(uint id : SV_DispatchThreadID)
@@ -128,7 +129,7 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
     int3 bucket = floor(c.position / bucket_size);
     uint hash = hash_coord(bucket);
     
-    cell_hashes[id] = hash;
+    cell_hashes[id] = hash & bucket_table_size - 1;
     cell_indices[id] = id;
 }
 
@@ -137,7 +138,6 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
 RWStructuredBuffer<uint> bucket_start;
 RWStructuredBuffer<uint> bucket_count;
 
-uint bucket_table_size;
 
 [numthreads(256, 1, 1)]
 void build_bucket_ranges(uint id : SV_DispatchThreadID)
@@ -147,10 +147,10 @@ void build_bucket_ranges(uint id : SV_DispatchThreadID)
     uint hash = cell_hashes[id];
     uint bucket = hash & (bucket_table_size - 1);
 
-    uint prevHash = (id > 0) ? cell_hashes[id - 1] : 0xffffffff;
+    uint prev_hash = id > 0 ? cell_hashes[id - 1] : 0xffffffff;
 
     // First element of this hash group
-    if (id == 0 || hash != prevHash)
+    if (id == 0 || hash != prev_hash)
     {
         bucket_start[bucket] = id;
     }
@@ -176,10 +176,11 @@ void apply_forces(uint id : SV_DispatchThreadID)
     cell c = cells[id];
     
     // Air pressure force
-    float origin_distance = length(c.position);
-    float3 pressure_dir = (origin_distance > 0.0001)
-        ? -c.position / origin_distance
-        : 0;
+    float r2 = dot(c.position, c.position) + 1e-8;
+    float inv_r = rsqrt(r2);
+
+    float3 pressure_dir = -c.position * inv_r;
+    float origin_distance = r2 * inv_r;
 
     float3 accel = origin_distance * origin_distance
                     * air_pressure_strength
@@ -194,7 +195,7 @@ void apply_forces(uint id : SV_DispatchThreadID)
             {
                 int3 nb = base_bucket + int3(x, y, z);
                 uint hash = hash_coord(nb);
-                uint bucket = hash & (bucket_table_size - 1);
+                uint bucket = hash & bucket_table_size - 1;
 
                 uint start = bucket_start[bucket];
                 uint count = bucket_count[bucket];
