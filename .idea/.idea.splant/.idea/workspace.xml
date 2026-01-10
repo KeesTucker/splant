@@ -3,8 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Mats/SplantMat.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Mats/SplantMat.mat" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -137,7 +137,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768012576854</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="feat: disregarded cells who collided into same bucket when doing repulsion, simplified a few bits and bobs.">
+      <option name="closed" value="true" />
+      <created>1768015661515</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1768015661515</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -168,7 +176,8 @@
     <MESSAGE value="feat: Big cleanup and I have started implementing spatial hashing. Not complete but I just finished radix sorting the hashes. Still need to generate bucket ranges." />
     <MESSAGE value="fix: We are back on spacial hashing, added some fixes to stop it crashing due to unintialized buffers and out of order ops. Clamped positions within bounding box." />
     <MESSAGE value="feat: fixed bucketing bug where I wasn't sorting by the masked hash. corrected other small issues" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: fixed bucketing bug where I wasn't sorting by the masked hash. corrected other small issues" />
+    <MESSAGE value="feat: disregarded cells who collided into same bucket when doing repulsion, simplified a few bits and bobs." />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: disregarded cells who collided into same bucket when doing repulsion, simplified a few bits and bobs." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

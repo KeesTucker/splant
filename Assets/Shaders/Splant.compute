@@ -40,14 +40,14 @@ bool should_split(cell c, uint id)
 {
     float r = random(id + (uint)(time * 1000));
     float agePenalty = exp(-c.age * 0.5); // Rapid dropoff
-    return r < 0.05 * agePenalty;
+    return r < 0.01 * agePenalty;
 }
 
 bool should_die(cell c, uint id)
 {
     float r = random(id + (uint)(time * 1000) + 12345); // decorrelate
     float age_factor = 1.0 - exp(-c.age * 0.5); // 0 → 1 as age increases
-    return r < 0.05 * age_factor;
+    return r < 0.01 * age_factor;
 }
 
 cell make_child(cell parent, uint id)
