@@ -68,29 +68,15 @@ cell make_child(cell parent, uint id)
 [numthreads(256, 1, 1)]
 void grow(uint id : SV_DispatchThreadID)
 {
-    if (id >= max_cells)
-    {
-        return;
-    }
+    if (id >= max_cells) return;
     
-    if (id >= cell_count[0])
-    {
-        return;
-    }
+    if (id >= cell_count[0]) return;
     
     cell parent = cells_in[id];
     
     parent.age += delta_time;
 
-    if (should_die(parent, id))
-    {
-        return;
-    }
-    
-    if (parent.age > 5)
-    {
-        return;
-    }
+    if (should_die(parent, id)) return;
     
     float age_factor = exp(-parent.age * 1);
     parent.color = lerp(death_colour, new_colour, age_factor);
@@ -109,7 +95,7 @@ void grow(uint id : SV_DispatchThreadID)
 
 #pragma kernel build_depth_keys
 
-StructuredBuffer<cell> cells;
+RWStructuredBuffer<cell> cells;
 RWStructuredBuffer<float> depth_keys;
 RWStructuredBuffer<uint> depth_indices;
 
@@ -136,10 +122,110 @@ float bucket_size;
 [numthreads(256, 1, 1)]
 void build_spatial_hash(uint id : SV_DispatchThreadID)
 {
+    if (id >= cell_count[0]) return;
+    
     cell c = cells[id];
     int3 bucket = floor(c.position / bucket_size);
     uint hash = hash_coord(bucket);
     
     cell_hashes[id] = hash;
     cell_indices[id] = id;
+}
+
+#pragma kernel build_bucket_ranges
+
+RWStructuredBuffer<uint> bucket_start;
+RWStructuredBuffer<uint> bucket_count;
+
+uint bucket_table_size;
+
+[numthreads(256, 1, 1)]
+void build_bucket_ranges(uint id : SV_DispatchThreadID)
+{
+    if (id >= cell_count[0]) return;
+
+    uint hash = cell_hashes[id];
+    uint bucket = hash & (bucket_table_size - 1);
+
+    uint prevHash = (id > 0) ? cell_hashes[id - 1] : 0xffffffff;
+
+    // First element of this hash group
+    if (id == 0 || hash != prevHash)
+    {
+        bucket_start[bucket] = id;
+    }
+
+    // Every element contributes to count
+    InterlockedAdd(bucket_count[bucket], 1);
+}
+
+#pragma kernel apply_forces
+
+float air_pressure_strength;
+float neighbor_radius;
+float neighbor_radius_sq;
+float repulsion_strength;
+
+[numthreads(256, 1, 1)]
+void apply_forces(uint id : SV_DispatchThreadID)
+{
+    if (id >= cell_count[0]) return;
+
+    cell c = cells[id];
+    
+    // Air pressure force
+    float origin_distance = length(c.position);
+    float3 pressure_dir = (origin_distance > 0.0001)
+        ? -c.position / origin_distance
+        : 0;
+
+    float3 accel = origin_distance * origin_distance
+                    * air_pressure_strength
+                    * pressure_dir;
+    
+    // Spatial hash repulsion
+    int3 base_bucket = floor(c.position / bucket_size);
+
+    for (int z = -1; z <= 1; z++)
+        for (int y = -1; y <= 1; y++)
+            for (int x = -1; x <= 1; x++)
+            {
+                int3 nb = base_bucket + int3(x, y, z);
+                uint hash = hash_coord(nb);
+                uint bucket = hash & (bucket_table_size - 1);
+
+                uint start = bucket_start[bucket];
+                uint count = bucket_count[bucket];
+
+                if (count == 0) continue;
+
+                for (uint i = 0; i < count; i++)
+                {
+                    uint sortedIdx = start + i;
+                    uint otherId = cell_indices[sortedIdx];
+
+                    if (otherId == id) continue;
+
+                    cell other = cells[otherId];
+
+                    float3 delta = c.position - other.position;
+                    float distSq = dot(delta, delta);
+
+                    if (distSq > neighbor_radius_sq || distSq < 1e-6)
+                        continue;
+
+                    float dist = sqrt(distSq);
+                    float3 dir = delta / dist;
+
+                    // Smooth repulsion (stronger when closer)
+                    float t = 1.0 - (dist / neighbor_radius);
+                    float force = repulsion_strength * t * t;
+
+                    accel += dir * force;
+                }
+            }
+    
+    // Integrate
+    c.position += accel * delta_time;
+    cells[id] = c;
 }

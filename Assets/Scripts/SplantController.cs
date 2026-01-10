@@ -13,6 +13,8 @@ public class SplantController : MonoBehaviour
     private int _growKernel;
     private int _buildDepthKernel;
     private int _buildSpatialKernel;
+    private int _buildBucketKernel;
+    private int _applyForcesKernel;
     
     private static readonly int CellsID = Shader.PropertyToID("cells");
     private static readonly int CellsInID    = Shader.PropertyToID("cells_in");
@@ -35,6 +37,13 @@ public class SplantController : MonoBehaviour
     private static readonly int CellHashesID = Shader.PropertyToID("cell_hashes");
     private static readonly int CellIndicesID = Shader.PropertyToID("cell_indices");
     private static readonly int BucketSizeID = Shader.PropertyToID("bucket_size");
+    private static readonly int BucketStartID = Shader.PropertyToID("bucket_start");
+    private static readonly int BucketCountID = Shader.PropertyToID("bucket_count");
+    private static readonly int BucketTableSizeID = Shader.PropertyToID("bucket_table_size");
+    private static readonly int AirPressureStrengthID = Shader.PropertyToID("air_pressure_strength");
+    private static readonly int NeighborRadiusID = Shader.PropertyToID("neighbor_radius");
+    private static readonly int NeighborRadiusSqID = Shader.PropertyToID("neighbor_radius_sq");
+    private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
 
 
     [SerializeField] private ComputeShader compute;
@@ -52,7 +61,13 @@ public class SplantController : MonoBehaviour
     
     [Header("Spatial Hashing")]
     [SerializeField] private float bucketSize = 0.1f;
-
+    [SerializeField] private int bucketTableSize = 1 << 18;
+    
+    [Header("Physics")] 
+    [SerializeField] private float neighborRadius = 0.1f; // <= bucketSize * 1.5
+    [SerializeField] private float airPressureStrength = 1f;
+    [SerializeField] private float repulsionStrength = 1f;
+    
     private ComputeBuffer _cellsA;
     private ComputeBuffer _cellsB;
     private ComputeBuffer _cellCount;
@@ -64,6 +79,9 @@ public class SplantController : MonoBehaviour
     private ComputeBuffer _cellHashes;
     private ComputeBuffer _cellIndices;
 
+    private ComputeBuffer _bucketStart;
+    private ComputeBuffer _bucketCount;
+    
     private ComputeBuffer _temp0;
     private ComputeBuffer _temp1;
     private ComputeBuffer _temp2;
@@ -79,6 +97,8 @@ public class SplantController : MonoBehaviour
         _growKernel       = compute.FindKernel("grow");
         _buildDepthKernel = compute.FindKernel("build_depth_keys");
         _buildSpatialKernel = compute.FindKernel("build_spatial_hash");
+        _buildBucketKernel = compute.FindKernel("build_bucket_ranges");
+        _applyForcesKernel = compute.FindKernel("apply_forces");
         
         _mainCamera = Camera.main;
 
@@ -95,6 +115,9 @@ public class SplantController : MonoBehaviour
         _cellHashes = new ComputeBuffer((int)maxCells, sizeof(uint));
         _cellIndices = new ComputeBuffer((int)maxCells, sizeof(uint));
 
+        _bucketStart = new ComputeBuffer(bucketTableSize, sizeof(uint));
+        _bucketCount = new ComputeBuffer(bucketTableSize, sizeof(uint));
+        
         _deviceRadixSort = new DeviceRadixSort(
             compute: sortCompute,
             allocationSize: (int)maxCells,
@@ -128,11 +151,14 @@ public class SplantController : MonoBehaviour
         compute.SetBuffer(0, CellCountID, _cellCount);
         compute.SetBuffer(1, CellCountID, _cellCount);
         compute.SetInt(MaxCellsID, (int)maxCells);
+        compute.SetInt(BucketTableSizeID, bucketTableSize);
     }
 
     private void OnDestroy()
     {
         _args?.Release();
+        _bucketCount.Release();
+        _bucketStart.Release();
         _cellCount.Release();
         _cellHashes?.Release();
         _cellIndices.Release();
@@ -176,15 +202,30 @@ public class SplantController : MonoBehaviour
         // Grab count again cause we may have had cells divide in the grow kernel
         _cellCount.GetData(count); 
         cellCount = (int)count[0];
+        threadGroups = Mathf.CeilToInt(cellCount / ThreadsPerGroup);
         
+        // Physics
+        compute.SetFloat(AirPressureStrengthID, airPressureStrength);
+        compute.SetBuffer(_applyForcesKernel, CellsID, output);
+        compute.SetBuffer(_applyForcesKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_applyForcesKernel, CellIndicesID, _cellIndices);
+        compute.SetBuffer(_applyForcesKernel, BucketStartID, _bucketStart);
+        compute.SetBuffer(_applyForcesKernel, BucketCountID, _bucketCount);
+        
+        compute.SetFloat(NeighborRadiusID, neighborRadius);
+        compute.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
+        compute.SetFloat(RepulsionStrengthID, repulsionStrength);
+        
+        compute.Dispatch(_applyForcesKernel, threadGroups, 1, 1);
+        
+        // Depth sorting for splatting
         compute.SetBuffer(_buildDepthKernel, CellsID, output);
         compute.SetBuffer(_buildDepthKernel, DepthKeysID, _depthKeys);
         compute.SetBuffer(_buildDepthKernel, DepthIndicesID, _depthIndices);
 
         compute.SetVector(CameraPosID, _mainCamera.transform.position);
         compute.SetVector(CameraForwardID, _mainCamera.transform.forward);
-
-        threadGroups = Mathf.CeilToInt(cellCount / ThreadsPerGroup);
+        
         compute.Dispatch(_buildDepthKernel, threadGroups, 1, 1);
 
         var typeOfKey = typeof(float);
@@ -204,6 +245,7 @@ public class SplantController : MonoBehaviour
         );
 
         // Spatial Hashing
+        compute.SetBuffer(_buildSpatialKernel, CellCountID, _cellCount);
         compute.SetBuffer(_buildSpatialKernel, CellsID, output);
         compute.SetBuffer(_buildSpatialKernel, CellHashesID, _cellHashes);
         compute.SetBuffer(_buildSpatialKernel, CellIndicesID, _cellIndices);
@@ -229,7 +271,17 @@ public class SplantController : MonoBehaviour
             true
         );
         
-        // TODO: generate bucket ranges 
+        // Generate bucket ranges
+        var zeros = new uint[bucketTableSize];
+        _bucketStart.SetData(zeros);
+        _bucketCount.SetData(zeros);
+
+        compute.SetBuffer(_buildBucketKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_buildBucketKernel, CellHashesID, _cellHashes);
+        compute.SetBuffer(_buildBucketKernel, BucketStartID, _bucketStart);
+        compute.SetBuffer(_buildBucketKernel, BucketCountID, _bucketCount);
+        
+        compute.Dispatch(_buildBucketKernel, threadGroups, 1, 1);
         
         // Material setup
         material.SetBuffer(CellsID, output);

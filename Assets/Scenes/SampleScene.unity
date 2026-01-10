@@ -154,12 +154,17 @@ MonoBehaviour:
   material: {fileID: 2100000, guid: 71165c987cd0dfa47bc421cc701c05a9, type: 2}
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 1000, y: 1000, z: 1000}
+    m_Extent: {x: 7, y: 7, z: 7}
   maxCells: 100000
   size: 1
   falloff: 50
   newColour: {r: 0.17626214, g: 1, b: 0, a: 1}
-  deathColour: {r: 0.010493895, g: 0.103773594, b: 0, a: 1}
+  deathColour: {r: 0.2830189, g: 0.05676955, b: 0, a: 1}
+  bucketSize: 2
+  bucketTableSize: 32768
+  neighborRadius: 2.5
+  airPressureStrength: 0.1
+  repulsionStrength: 0.5
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0
@@ -355,7 +360,7 @@ Transform:
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
