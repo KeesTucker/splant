@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Structs;
 using UnityEngine;
 using GPUSorting.Runtime;
+using UnityEngine.Serialization;
 
 public class SplantController : MonoBehaviour
 {
@@ -45,14 +46,18 @@ public class SplantController : MonoBehaviour
     private static readonly int NeighborRadiusID = Shader.PropertyToID("neighbor_radius");
     private static readonly int NeighborRadiusSqID = Shader.PropertyToID("neighbor_radius_sq");
     private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
-    private static readonly int MinPosID = Shader.PropertyToID("min_pos");
-    private static readonly int MaxPosID = Shader.PropertyToID("max_pos");
+    private static readonly int MinPosID = Shader.PropertyToID("min_pos"); // replace with bounds min 
+    private static readonly int MaxPosID = Shader.PropertyToID("max_pos"); // replace with bounds max
+    private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
+    private static readonly int BoundsMinId = Shader.PropertyToID("bounds_min");
+    private static readonly int BoundsMaxId = Shader.PropertyToID("bounds_max");
 
 
     [SerializeField] private ComputeShader compute;
     [SerializeField] private ComputeShader sortCompute;
-    [SerializeField] private Material material;
-    [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 1000);
+    [SerializeField] private Material splatMaterial;
+    [SerializeField] private Material raymarchMaterial;
+    [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
     [SerializeField] private uint maxCells = 100000;
 
     [SerializeField] private float size = 1f;
@@ -153,10 +158,19 @@ public class SplantController : MonoBehaviour
         _args.SetData(Args);
         _cellCount.SetData(new[] { 1 });
         
-        compute.SetBuffer(0, CellCountID, _cellCount);
-        compute.SetBuffer(1, CellCountID, _cellCount);
+        compute.SetBuffer(_growKernel, CellCountID, _cellCount);
+        //compute.SetBuffer(_buildDepthKernel, CellCountID, _cellCount);
         compute.SetInt(MaxCellsID, (int)maxCells);
         compute.SetInt(BucketTableSizeID, bucketTableSize);
+
+        raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
+        raymarchMaterial.SetInt(BucketTableSizeID, bucketTableSize);
+        raymarchMaterial.SetFloat(NeighborRadiusID, neighborRadius);
+        raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
+        raymarchMaterial.SetBuffer(BucketStartID, _bucketStart);
+        raymarchMaterial.SetBuffer(BucketCountID, _bucketCount);
+        raymarchMaterial.SetBuffer(CellIndicesID, _cellIndices);
+        raymarchMaterial.SetBuffer(CellFullHashID, _cellFullHashes);
     }
 
     private void OnDestroy()
@@ -211,7 +225,7 @@ public class SplantController : MonoBehaviour
         threadGroups = Mathf.CeilToInt(cellCount / ThreadsPerGroup);
         
         // Depth sorting for splatting
-        compute.SetBuffer(_buildDepthKernel, CellsID, output);
+        /*compute.SetBuffer(_buildDepthKernel, CellsID, output);
         compute.SetBuffer(_buildDepthKernel, DepthIndicesID, _depthIndices);
         compute.SetBuffer(_buildDepthKernel, DepthKeysID, _depthKeys);
         compute.SetVector(CameraForwardID, _mainCamera.transform.forward);
@@ -233,7 +247,7 @@ public class SplantController : MonoBehaviour
             typeOfKey,
             typeOfPayload,
             false // back-to-front
-        );
+        );*/
 
         // Spatial Hashing
         compute.SetBuffer(_buildSpatialKernel, CellCountID, _cellCount);
@@ -245,8 +259,8 @@ public class SplantController : MonoBehaviour
         
         compute.Dispatch(_buildSpatialKernel, threadGroups, 1, 1);
 
-        typeOfKey = typeof(uint);
-        typeOfPayload = typeof(uint);
+        var typeOfKey = typeof(uint);
+        var typeOfPayload = typeof(uint);
         
         // Sort by hash
         _deviceRadixSort.Sort(
@@ -295,20 +309,51 @@ public class SplantController : MonoBehaviour
         compute.Dispatch(_applyForcesKernel, threadGroups, 1, 1);
         
         // Material setup
-        material.SetBuffer(CellsID, output);
-        material.SetBuffer(SortedIndicesID, _depthIndices);
-        material.SetFloat(SizeID, size);
-        material.SetFloat(FalloffID, falloff);
-        material.SetVector(CamRightID, _mainCamera.transform.right);
-        material.SetVector(CamUpID, _mainCamera.transform.up);
+        /*splatMaterial.SetBuffer(CellsID, output);
+        splatMaterial.SetBuffer(SortedIndicesID, _depthIndices);
+        splatMaterial.SetFloat(SizeID, size);
+        splatMaterial.SetFloat(FalloffID, falloff);
+        splatMaterial.SetVector(CamRightID, _mainCamera.transform.right);
+        splatMaterial.SetVector(CamUpID, _mainCamera.transform.up);
 
         Graphics.DrawProceduralIndirect(
-            material,
+            splatMaterial,
             bounds,
             MeshTopology.Triangles,
             _args
+        );*/
+
+        // Raymarch
+        // View matrix
+        Matrix4x4 view = _mainCamera.worldToCameraMatrix;
+
+        // Projection matrix (GPU-correct)
+        Matrix4x4 proj = GL.GetGPUProjectionMatrix(
+            _mainCamera.projectionMatrix,
+            false // render into screen, not a texture
         );
 
+        // Combine
+        Matrix4x4 viewProj = proj * view;
+
+        // Invert
+        Matrix4x4 invViewProj = viewProj.inverse;
+
+        // Send to shader
+        raymarchMaterial.SetMatrix(InvViewProjID, invViewProj);
+        raymarchMaterial.SetVector(CameraPosID, _mainCamera.transform.position);
+        raymarchMaterial.SetVector(BoundsMinId, bounds.min);
+        raymarchMaterial.SetVector(BoundsMaxId, bounds.max);
+        
+        raymarchMaterial.SetBuffer(CellsID, output);
+        
+        Graphics.DrawProcedural(
+            raymarchMaterial,
+            new Bounds(Vector3.zero, Vector3.one * 100000),
+            MeshTopology.Triangles,
+            3
+        );
+        
         _swap = !_swap;
     }
 }

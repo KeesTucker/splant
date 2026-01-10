@@ -1,4 +1,5 @@
 #include "Cell.hlsl"
+#include "Helpers.hlsl"
 
 StructuredBuffer<uint> cell_count;
 StructuredBuffer<cell> cells_in;
@@ -28,26 +29,18 @@ float random(uint seed)
     return float(hash_random(seed)) / 4294967295.0;
 }
 
-uint hash_coord(int3 coord)
-{
-    uint h = (uint)coord.x * 73856093u;
-    h ^= (uint)coord.y * 19349663u;
-    h ^= (uint)coord.z * 83492791u;
-    return h;
-}
-
 bool should_split(cell c, uint id)
 {
     float r = random(id + (uint)(time * 1000));
     float agePenalty = exp(-c.age * 0.5); // Rapid dropoff
-    return r < 0.01 * agePenalty;
+    return r < 0.05 * agePenalty;
 }
 
 bool should_die(cell c, uint id)
 {
     float r = random(id + (uint)(time * 1000) + 12345); // decorrelate
     float age_factor = 1.0 - exp(-c.age * 0.5); // 0 → 1 as age increases
-    return r < 0.01 * age_factor;
+    return r < 0.045 * age_factor;
 }
 
 cell make_child(cell parent, uint id)

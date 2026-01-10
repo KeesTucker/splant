@@ -151,20 +151,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   compute: {fileID: 7200000, guid: 25f73fd93e8d2d94b95608eb3250b534, type: 3}
   sortCompute: {fileID: 7200000, guid: dd9e6c4b54e463c409512ef8efb72fbd, type: 3}
-  material: {fileID: 2100000, guid: 71165c987cd0dfa47bc421cc701c05a9, type: 2}
+  splatMaterial: {fileID: 2100000, guid: 71165c987cd0dfa47bc421cc701c05a9, type: 2}
+  raymarchMaterial: {fileID: 2100000, guid: ed01d611c199d274ca29294071c5ed6d, type: 2}
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 5, y: 5, z: 5}
-  maxCells: 50000
+  maxCells: 10000
   size: 0.1
   falloff: 25
   newColour: {r: 0.17626214, g: 1, b: 0, a: 1}
   deathColour: {r: 0.2830189, g: 0.05676955, b: 0, a: 1}
-  bucketSize: 2
+  bucketSize: 1
   bucketTableSize: 262144
-  neighborRadius: 1
-  airPressureStrength: 0.1
-  repulsionStrength: 0.2
+  neighborRadius: 0.5
+  airPressureStrength: 0
+  repulsionStrength: 0.1
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0
@@ -285,6 +286,8 @@ GameObject:
   - component: {fileID: 963194228}
   - component: {fileID: 963194227}
   - component: {fileID: 963194226}
+  - component: {fileID: 963194230}
+  - component: {fileID: 963194229}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -366,6 +369,46 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &963194229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa08714d9d4c9f248bd9f7dcf2f54c68, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  CameraSpeed: 2
+  CameraSpeedMultiplier: 2
+  MaxCameraSpeed: 10
+  MouseSensitivity: 5
+  CameraSwitch: 0
+--- !u!114 &963194230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5c34e4198d81514a9d281a90bfbbb57, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  xAxis:
+    Positive: 100
+    Negative: 97
+  yAxis:
+    Positive: 119
+    Negative: 115
+  zAxis:
+    Positive: 101
+    Negative: 113
+  BoostSpeedKey: 304
+  SwitchOnKey: 102
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
