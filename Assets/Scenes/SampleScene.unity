@@ -154,17 +154,16 @@ MonoBehaviour:
   material: {fileID: 2100000, guid: 71165c987cd0dfa47bc421cc701c05a9, type: 2}
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 7, y: 7, z: 7}
+    m_Extent: {x: 4, y: 4, z: 4}
   maxCells: 100000
   size: 1
   falloff: 50
   newColour: {r: 0.17626214, g: 1, b: 0, a: 1}
   deathColour: {r: 0.2830189, g: 0.05676955, b: 0, a: 1}
   bucketSize: 2
-  bucketTableSize: 32768
   neighborRadius: 2.5
-  airPressureStrength: 0.1
-  repulsionStrength: 0.5
+  airPressureStrength: 0.04
+  repulsionStrength: 0.01
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0
