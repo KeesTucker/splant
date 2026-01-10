@@ -2,13 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl.meta" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Mats/SplantMat.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Mats/SplantMat.mat" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -110,7 +106,7 @@
       <workItem from="1767940905750" duration="1915000" />
       <workItem from="1767947085204" duration="94000" />
       <workItem from="1767982791528" duration="9913000" />
-      <workItem from="1768027489409" duration="4922000" />
+      <workItem from="1768027489409" duration="5804000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -160,7 +156,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768016414957</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="feat: HOLY FUCKING SHIT RAY MARCHING WORKS. its very bad, and very slow, but it works">
+      <option name="closed" value="true" />
+      <created>1768032651652</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1768032651652</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -193,7 +197,8 @@
     <MESSAGE value="feat: fixed bucketing bug where I wasn't sorting by the masked hash. corrected other small issues" />
     <MESSAGE value="feat: disregarded cells who collided into same bucket when doing repulsion, simplified a few bits and bobs." />
     <MESSAGE value="fun: playing around with values" />
-    <option name="LAST_COMMIT_MESSAGE" value="fun: playing around with values" />
+    <MESSAGE value="feat: HOLY FUCKING SHIT RAY MARCHING WORKS. its very bad, and very slow, but it works" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: HOLY FUCKING SHIT RAY MARCHING WORKS. its very bad, and very slow, but it works" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

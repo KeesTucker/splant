@@ -156,13 +156,13 @@ MonoBehaviour:
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 5, y: 5, z: 5}
-  maxCells: 10000
+  maxCells: 5000
   size: 0.1
   falloff: 25
   newColour: {r: 0.17626214, g: 1, b: 0, a: 1}
   deathColour: {r: 0.2830189, g: 0.05676955, b: 0, a: 1}
   bucketSize: 1
-  bucketTableSize: 262144
+  bucketTableSize: 32768
   neighborRadius: 0.5
   airPressureStrength: 0
   repulsionStrength: 0.1

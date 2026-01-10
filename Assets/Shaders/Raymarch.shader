@@ -181,7 +181,7 @@ Shader "Unlit/Raymarch"
 
                         float lighting = 0.25 + 0.75 * ndot_l;
 
-                        return float4(lighting.xxx, 1);
+                        return float4(0.1, lighting.x, 0.1, 1);
                     };
 
                     t += dt;
