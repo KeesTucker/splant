@@ -12,7 +12,7 @@ float4 death_colour;
 float3 camera_pos;
 float3 camera_forward;
 
-uint hash(uint s)
+uint hash_random(uint s)
 {
     s ^= 2747636419u;
     s *= 2654435769u;
@@ -25,14 +25,15 @@ uint hash(uint s)
 
 float random(uint seed)
 {
-    return float(hash(seed)) / 4294967295.0;
+    return float(hash_random(seed)) / 4294967295.0;
 }
 
 uint hash_coord(int3 coord)
 {
-    return (uint)(coord.x * 73856093) ^
-        (uint)(coord.y * 19349663) ^
-        (uint)(coord.z * 83492791);
+    uint h = (uint)coord.x * 73856093u;
+    h ^= (uint)coord.y * 19349663u;
+    h ^= (uint)coord.z * 83492791u;
+    return h;
 }
 
 bool should_split(cell c, uint id)
@@ -114,7 +115,8 @@ void build_depth_keys(uint id : SV_DispatchThreadID)
 
 #pragma kernel build_spatial_hash
 
-RWStructuredBuffer<uint> cell_hashes;
+RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
+RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
 RWStructuredBuffer<uint> cell_indices;
 
 float bucket_size;
@@ -127,9 +129,11 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
     
     cell c = cells[id];
     int3 bucket = floor(c.position / bucket_size);
-    uint hash = hash_coord(bucket);
-    
-    cell_hashes[id] = hash & bucket_table_size - 1;
+    uint full = hash_coord(bucket);
+    uint table = full & (bucket_table_size - 1);
+
+    cell_full_hash[id] = full;
+    cell_table_keys[id] = table;
     cell_indices[id] = id;
 }
 
@@ -139,18 +143,18 @@ RWStructuredBuffer<uint> bucket_start;
 RWStructuredBuffer<uint> bucket_count;
 
 
+// ENSURE HASHES ARE SORTED WITH RADIX SORT BEFORE RUNNING BUILD BUCKET RANGES
 [numthreads(256, 1, 1)]
 void build_bucket_ranges(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
 
-    uint hash = cell_hashes[id];
-    uint bucket = hash & (bucket_table_size - 1);
-
-    uint prev_hash = id > 0 ? cell_hashes[id - 1] : 0xffffffff;
+    uint key = cell_table_keys[id];      // masked key (sorted by this)
+    uint prev_bucket = id > 0 ? cell_table_keys[id - 1] : 0xffffffff;
+    uint bucket = key;
 
     // First element of this hash group
-    if (id == 0 || hash != prev_hash)
+    if (id == 0 || bucket != prev_bucket)
     {
         bucket_start[bucket] = id;
     }
@@ -177,14 +181,13 @@ void apply_forces(uint id : SV_DispatchThreadID)
     
     // Air pressure force
     float r2 = dot(c.position, c.position) + 1e-8;
-    float inv_r = rsqrt(r2);
+    float r  = sqrt(r2);
+    float3 pressure_dir = -c.position / r;
 
-    float3 pressure_dir = -c.position * inv_r;
-    float origin_distance = r2 * inv_r;
-
-    float3 accel = origin_distance * origin_distance
-                    * air_pressure_strength
-                    * pressure_dir;
+    float3 accel =
+        pressure_dir *
+        air_pressure_strength *
+        r2;
     
     // Spatial hash repulsion
     int3 base_bucket = floor(c.position / bucket_size);
@@ -195,7 +198,8 @@ void apply_forces(uint id : SV_DispatchThreadID)
             {
                 int3 nb = base_bucket + int3(x, y, z);
                 uint hash = hash_coord(nb);
-                uint bucket = hash & bucket_table_size - 1;
+                
+                uint bucket = hash & (bucket_table_size - 1);
 
                 uint start = bucket_start[bucket];
                 uint count = bucket_count[bucket];
@@ -206,6 +210,9 @@ void apply_forces(uint id : SV_DispatchThreadID)
                 {
                     uint sorted_idx = start + i;
                     if (sorted_idx >= cell_count[0]) continue;
+                    
+                    if (cell_full_hash[cell_indices[sorted_idx]] != hash)
+                        continue;
                     
                     uint other_id = cell_indices[sorted_idx];
 
