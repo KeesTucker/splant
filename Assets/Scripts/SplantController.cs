@@ -75,7 +75,6 @@ public class SplantController : MonoBehaviour
     private ComputeBuffer _cellsTemp;
     private ComputeBuffer _cellTableKeys;
     private ComputeBuffer _compactCount;
-    private ComputeBuffer _renderArgs;
     private ComputeBuffer _temp0;
     private ComputeBuffer _temp1;
     private ComputeBuffer _temp2;
@@ -123,11 +122,9 @@ public class SplantController : MonoBehaviour
         _cellsTemp = new ComputeBuffer((int)maxCells, stride);
         _cellTableKeys = new ComputeBuffer((int)maxCells, sizeof(uint));
         _compactCount = new ComputeBuffer(1, sizeof(uint));
-        _renderArgs = new ComputeBuffer(4, sizeof(uint), ComputeBufferType.IndirectArguments);
 
         // Init
         _cellComputeArgs.SetData(new uint[] { 1, 1, 1 });
-        _renderArgs.SetData(new[] { 6, 1, 0, 0 }); // Start with 1 cell
         _cellCount.SetData(new[] { 1u });
         _compactCount.SetData(new[] { 0u });
         
@@ -186,9 +183,6 @@ public class SplantController : MonoBehaviour
         
         // Prepare indirect args
         compute.Dispatch(_prepareIndirectArgsKernel, 1, 1, 1);
-        
-        // Copy count for rendering
-        ComputeBuffer.CopyCount(_cells, _renderArgs, sizeof(uint));
     
         // Sort needs CPU count. TODO: modify to allow DispatchIndirect
         uint[] count = { 0 };
@@ -306,7 +300,6 @@ public class SplantController : MonoBehaviour
 
     private void ReleaseBuffers()
     {
-        _renderArgs?.Release();
         _bucketEnd?.Release();
         _bucketStart?.Release();
         _cellCount?.Release();
