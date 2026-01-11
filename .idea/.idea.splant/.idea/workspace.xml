@@ -3,7 +3,9 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -121,6 +123,7 @@
       <workItem from="1768073078011" duration="886000" />
       <workItem from="1768100782625" duration="6545000" />
       <workItem from="1768110241288" duration="995000" />
+      <workItem from="1768157476275" duration="2166000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />

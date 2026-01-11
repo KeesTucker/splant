@@ -72,6 +72,10 @@ void grow(uint id : SV_DispatchThreadID)
     if (id >= cell_count[0]) return;
     
     cell c = cells[id];
+    
+    // Skip dead cells
+    if (c.age < 0) return;
+    
     c.age += delta_time;
 
     // Check if should die
@@ -176,9 +180,6 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
     if (id >= cell_count[0]) return;
     
     cell c = cells[id];
-    
-    // Skip dead cells
-    if (c.age < 0) return;
     
     int3 bucket = floor(c.position / bucket_size);
     uint full = hash_coord(bucket);
