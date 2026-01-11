@@ -151,12 +151,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   compute: {fileID: 7200000, guid: 25f73fd93e8d2d94b95608eb3250b534, type: 3}
   sortCompute: {fileID: 7200000, guid: dd9e6c4b54e463c409512ef8efb72fbd, type: 3}
-  splatMaterial: {fileID: 2100000, guid: 71165c987cd0dfa47bc421cc701c05a9, type: 2}
   raymarchMaterial: {fileID: 2100000, guid: ed01d611c199d274ca29294071c5ed6d, type: 2}
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 5, y: 5, z: 5}
-  maxCells: 5000
+  maxCells: 50000
   size: 0.1
   falloff: 25
   newColour: {r: 0.17626214, g: 1, b: 0, a: 1}

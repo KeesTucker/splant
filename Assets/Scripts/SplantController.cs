@@ -2,60 +2,46 @@ using System.Runtime.InteropServices;
 using Structs;
 using UnityEngine;
 using GPUSorting.Runtime;
-using UnityEngine.Serialization;
 
 public class SplantController : MonoBehaviour
 {
-    private const float ThreadsPerGroup = 256f;
-
-    // { vertexCountPerInstance, instanceCount, startVertex, startInstance }
-    private static readonly uint[] Args = { 6, 0, 0, 0 };
-
-    private int _growKernel;
-    private int _buildDepthKernel;
-    private int _buildSpatialKernel;
-    private int _buildBucketKernel;
     private int _applyForcesKernel;
+    private int _buildBucketKernel;
+    private int _buildSpatialKernel;
+    private int _clearBucketsKernel;
+    private int _growKernel;
+    private int _prepareIndirectArgsKernel;
     
+    private static readonly int AirPressureStrengthID = Shader.PropertyToID("air_pressure_strength");
+    private static readonly int BoundsMaxId = Shader.PropertyToID("bounds_max");
+    private static readonly int BoundsMinId = Shader.PropertyToID("bounds_min");
+    private static readonly int BucketCountID = Shader.PropertyToID("bucket_count");
+    private static readonly int BucketSizeID = Shader.PropertyToID("bucket_size");
+    private static readonly int BucketStartID = Shader.PropertyToID("bucket_start");
+    private static readonly int BucketTableSizeID = Shader.PropertyToID("bucket_table_size");
+    private static readonly int CameraPosID = Shader.PropertyToID("camera_pos");
+    private static readonly int CellCountID   = Shader.PropertyToID("cell_count");
+    private static readonly int CellFullHashID = Shader.PropertyToID("cell_full_hash");
+    private static readonly int CellIndicesID = Shader.PropertyToID("cell_indices");
+    private static readonly int CellTableKeysID = Shader.PropertyToID("cell_table_keys");
     private static readonly int CellsID = Shader.PropertyToID("cells");
     private static readonly int CellsInID    = Shader.PropertyToID("cells_in");
     private static readonly int CellsOutID   = Shader.PropertyToID("cells_out");
-    private static readonly int CellCountID   = Shader.PropertyToID("cell_count");
-    private static readonly int TimeID       = Shader.PropertyToID("time");
-    private static readonly int DeltaTimeID       = Shader.PropertyToID("delta_time");
-    private static readonly int MaxCellsID   = Shader.PropertyToID("max_cells");
-    private static readonly int NewColourID  = Shader.PropertyToID("new_colour");
     private static readonly int DeathColourID  = Shader.PropertyToID("death_colour");
-    private static readonly int FalloffID = Shader.PropertyToID("falloff");
-    private static readonly int SizeID    = Shader.PropertyToID("size");
-    private static readonly int CameraPosID = Shader.PropertyToID("camera_pos");
-    private static readonly int CamRightID = Shader.PropertyToID("cam_right");
-    private static readonly int CamUpID    = Shader.PropertyToID("cam_up");
-    private static readonly int CameraForwardID = Shader.PropertyToID("camera_forward");
-    private static readonly int DepthKeysID = Shader.PropertyToID("depth_keys");
-    private static readonly int DepthIndicesID = Shader.PropertyToID("depth_indices");
-    private static readonly int SortedIndicesID = Shader.PropertyToID("sorted_indices");
-    private static readonly int CellTableKeysID = Shader.PropertyToID("cell_table_keys");
-    private static readonly int CellFullHashID = Shader.PropertyToID("cell_full_hash");
-    private static readonly int CellIndicesID = Shader.PropertyToID("cell_indices");
-    private static readonly int BucketSizeID = Shader.PropertyToID("bucket_size");
-    private static readonly int BucketStartID = Shader.PropertyToID("bucket_start");
-    private static readonly int BucketCountID = Shader.PropertyToID("bucket_count");
-    private static readonly int BucketTableSizeID = Shader.PropertyToID("bucket_table_size");
-    private static readonly int AirPressureStrengthID = Shader.PropertyToID("air_pressure_strength");
+    private static readonly int DeltaTimeID       = Shader.PropertyToID("delta_time");
+    private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
+    private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
+    private static readonly int MaxCellsID   = Shader.PropertyToID("max_cells");
+    private static readonly int MaxPosID = Shader.PropertyToID("max_pos"); // replace with bounds max
+    private static readonly int MinPosID = Shader.PropertyToID("min_pos"); // replace with bounds min 
     private static readonly int NeighborRadiusID = Shader.PropertyToID("neighbor_radius");
     private static readonly int NeighborRadiusSqID = Shader.PropertyToID("neighbor_radius_sq");
+    private static readonly int NewColourID  = Shader.PropertyToID("new_colour");
     private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
-    private static readonly int MinPosID = Shader.PropertyToID("min_pos"); // replace with bounds min 
-    private static readonly int MaxPosID = Shader.PropertyToID("max_pos"); // replace with bounds max
-    private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
-    private static readonly int BoundsMinId = Shader.PropertyToID("bounds_min");
-    private static readonly int BoundsMaxId = Shader.PropertyToID("bounds_max");
-
+    private static readonly int TimeID       = Shader.PropertyToID("time");
 
     [SerializeField] private ComputeShader compute;
     [SerializeField] private ComputeShader sortCompute;
-    [SerializeField] private Material splatMaterial;
     [SerializeField] private Material raymarchMaterial;
     [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
     [SerializeField] private uint maxCells = 100000;
@@ -79,21 +65,17 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float airPressureStrength = 1f;
     [SerializeField] private float repulsionStrength = 1f;
     
-    private ComputeBuffer _cellsA;
-    private ComputeBuffer _cellsB;
+    private ComputeBuffer _bucketCount;
+    private ComputeBuffer _bucketStart;
+    private ComputeBuffer _cellComputeArgs;
     private ComputeBuffer _cellCount;
-    private ComputeBuffer _args;
-
-    private ComputeBuffer _depthKeys;
-    private ComputeBuffer _depthIndices;
-    
-    private ComputeBuffer _cellTableKeys;
     private ComputeBuffer _cellFullHashes;
     private ComputeBuffer _cellIndices;
-
-    private ComputeBuffer _bucketStart;
-    private ComputeBuffer _bucketCount;
-    
+    private ComputeBuffer _cellTableKeys;
+    private ComputeBuffer _cells;
+    private ComputeBuffer _cellsA;
+    private ComputeBuffer _cellsB;
+    private ComputeBuffer _renderArgs;
     private ComputeBuffer _temp0;
     private ComputeBuffer _temp1;
     private ComputeBuffer _temp2;
@@ -106,44 +88,42 @@ public class SplantController : MonoBehaviour
 
     private void Awake()
     {
+        _mainCamera = Camera.main;
+        
+        FindKernels();
+        InitBuffers();
+        InitRadixSort();
+    }
+
+    private void FindKernels()
+    {
         _applyForcesKernel = compute.FindKernel("apply_forces");
         _buildBucketKernel = compute.FindKernel("build_bucket_ranges");
-        _buildDepthKernel = compute.FindKernel("build_depth_keys");
         _buildSpatialKernel = compute.FindKernel("build_spatial_hash");
+        _clearBucketsKernel = compute.FindKernel("clear_buckets");
         _growKernel       = compute.FindKernel("grow");
-        
+        _prepareIndirectArgsKernel = compute.FindKernel("prepare_indirect_args");
+    }
+
+    private void InitBuffers()
+    {
         var stride = Marshal.SizeOf<Cell>();   
         
-        _args = new ComputeBuffer(1, Args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         _bucketCount = new ComputeBuffer(bucketTableSize, sizeof(uint));
         _bucketStart = new ComputeBuffer(bucketTableSize, sizeof(uint));
+        _cellComputeArgs = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
         _cellCount = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Structured);
         _cellFullHashes = new ComputeBuffer((int)maxCells, sizeof(uint));
         _cellIndices = new ComputeBuffer((int)maxCells, sizeof(uint));
         _cellTableKeys = new ComputeBuffer((int)maxCells, sizeof(uint));
         _cellsA = new ComputeBuffer((int)maxCells, stride, ComputeBufferType.Append);
         _cellsB = new ComputeBuffer((int)maxCells, stride, ComputeBufferType.Append);
-        _depthIndices = new ComputeBuffer((int)maxCells, sizeof(uint));
-        _depthKeys = new ComputeBuffer((int)maxCells, sizeof(float));
+        _renderArgs = new ComputeBuffer(4, sizeof(uint), ComputeBufferType.IndirectArguments);
+
+        // Init args
+        _cellComputeArgs.SetData(new uint[] { 1, 1, 1 });
+        _renderArgs.SetData(new[] { 6, 0, 0, 0 });
         
-        _deviceRadixSort = new DeviceRadixSort(
-            compute: sortCompute,
-            allocationSize: (int)maxCells,
-            ref _temp0,
-            ref _temp1,
-            ref _temp2,
-            ref _temp3
-        );
-
-    }
-
-    private void Start()
-    {
-        _mainCamera = Camera.main;
-        
-        _cellsA.SetCounterValue(0);
-        _cellsB.SetCounterValue(0);
-
         // Seed with one cell
         _cellsA.SetData(new[] {
             new Cell
@@ -154,113 +134,68 @@ public class SplantController : MonoBehaviour
             }
         });
         _cellsA.SetCounterValue(1);
-
-        _args.SetData(Args);
+        _cellsB.SetCounterValue(0);
         _cellCount.SetData(new[] { 1 });
         
-        compute.SetBuffer(_growKernel, CellCountID, _cellCount);
-        //compute.SetBuffer(_buildDepthKernel, CellCountID, _cellCount);
-        compute.SetInt(MaxCellsID, (int)maxCells);
-        compute.SetInt(BucketTableSizeID, bucketTableSize);
+        // Start with cells A
+        _cells = _cellsA;
+    }
 
-        raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
-        raymarchMaterial.SetInt(BucketTableSizeID, bucketTableSize);
-        raymarchMaterial.SetFloat(NeighborRadiusID, neighborRadius);
-        raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
-        raymarchMaterial.SetBuffer(BucketStartID, _bucketStart);
-        raymarchMaterial.SetBuffer(BucketCountID, _bucketCount);
-        raymarchMaterial.SetBuffer(CellIndicesID, _cellIndices);
-        raymarchMaterial.SetBuffer(CellFullHashID, _cellFullHashes);
+    private void InitRadixSort()
+    {
+        _deviceRadixSort = new DeviceRadixSort(
+            compute: sortCompute,
+            allocationSize: (int)maxCells,
+            ref _temp0,
+            ref _temp1,
+            ref _temp2,
+            ref _temp3
+        );
+    }
+
+    private void Start()
+    {
+        SetParams();
+        SetComputeBuffers();
+        SetRaymarchBuffers();
+    }
+
+    private void OnValidate()
+    {
+        SetParams();
     }
 
     private void OnDestroy()
     {
-        _args?.Release();
-        _bucketCount.Release();
-        _bucketStart.Release();
-        _cellCount.Release();
-        _cellFullHashes?.Release();
-        _cellIndices.Release();
-        _cellTableKeys?.Release();
-        _cellsA?.Release();
-        _cellsB?.Release();
-        _depthIndices?.Release();
-        _depthKeys?.Release();
-        _temp0?.Release();
-        _temp1?.Release();
-        _temp2?.Release();
-        _temp3?.Release();
+        ReleaseBuffers();
     }
 
     private void Update()
     {
-        var input  = _swap ? _cellsB : _cellsA;
-        var output = _swap ? _cellsA : _cellsB;
-
-        output.SetCounterValue(0);
-
-        compute.SetBuffer(_growKernel, CellsInID, input);
-        compute.SetBuffer(_growKernel, CellsOutID, output);
+        // Set time
         compute.SetFloat(DeltaTimeID, Time.deltaTime);
         compute.SetFloat(TimeID, Time.time);
-        compute.SetVector(DeathColourID, deathColour);
-        compute.SetVector(NewColourID, newColour);
-        
-        // Get cell count so we can dispatch an appropriate amount of thread groups.
+    
+        // Grow cells (using previous frame's indirect args, or first frame uses initial count)
+        _cells = DispatchGrowKernel();
+    
+        // Copy count from append buffer to cell_count buffer
+        ComputeBuffer.CopyCount(_cells, _cellCount, 0);
+    
+        // Prepare indirect args for spatial/physics/grow passes
+        compute.Dispatch(_prepareIndirectArgsKernel, 1, 1, 1);
+    
+        // Copy count for rendering args
+        ComputeBuffer.CopyCount(_cells, _renderArgs, sizeof(uint));
+    
+        // Sort needs CPU count. TODO: modify to allow DispatchIndirect
         uint[] count = { 0 };
         _cellCount.GetData(count);
         var cellCount = (int)count[0];
         
-        var threadGroups = Mathf.CeilToInt(cellCount / ThreadsPerGroup);
-        compute.Dispatch(_growKernel, Mathf.Max(threadGroups, 1), 1, 1);
-        
-        // Copy append count for rendering
-        ComputeBuffer.CopyCount(output, _args, sizeof(uint));
-        // Copy append count into a readable buffer
-        ComputeBuffer.CopyCount(output, _cellCount, 0);
-        
-        // Grab count again cause we may have had cells divide in the grow kernel
-        _cellCount.GetData(count); 
-        cellCount = (int)count[0];
-        threadGroups = Mathf.CeilToInt(cellCount / ThreadsPerGroup);
-        
-        // Depth sorting for splatting
-        /*compute.SetBuffer(_buildDepthKernel, CellsID, output);
-        compute.SetBuffer(_buildDepthKernel, DepthIndicesID, _depthIndices);
-        compute.SetBuffer(_buildDepthKernel, DepthKeysID, _depthKeys);
-        compute.SetVector(CameraForwardID, _mainCamera.transform.forward);
-        compute.SetVector(CameraPosID, _mainCamera.transform.position);
-        
-        compute.Dispatch(_buildDepthKernel, threadGroups, 1, 1);
-
-        var typeOfKey = typeof(float);
-        var typeOfPayload = typeof(uint);
-        
-        _deviceRadixSort.Sort(
-            cellCount,
-            _depthKeys,
-            _depthIndices,
-            _temp0,
-            _temp1,
-            _temp2,
-            _temp3,
-            typeOfKey,
-            typeOfPayload,
-            false // back-to-front
-        );*/
-
-        // Spatial Hashing
-        compute.SetBuffer(_buildSpatialKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_buildSpatialKernel, CellIndicesID, _cellIndices);
-        compute.SetBuffer(_buildSpatialKernel, CellFullHashID, _cellFullHashes);
-        compute.SetBuffer(_buildSpatialKernel, CellTableKeysID, _cellTableKeys);
-        compute.SetBuffer(_buildSpatialKernel, CellsID, output);
-        compute.SetFloat(BucketSizeID, bucketSize);
-        
-        compute.Dispatch(_buildSpatialKernel, threadGroups, 1, 1);
-
-        var typeOfKey = typeof(uint);
-        var typeOfPayload = typeof(uint);
+        // Build Spatial Hashing
+        compute.SetBuffer(_buildSpatialKernel, CellsID, _cells);
+        compute.DispatchIndirect(_buildSpatialKernel, _cellComputeArgs);
         
         // Sort by hash
         _deviceRadixSort.Sort(
@@ -271,81 +206,42 @@ public class SplantController : MonoBehaviour
             _temp1,
             _temp2,
             _temp3,
-            typeOfKey,
-            typeOfPayload,
+            typeof(uint),
+            typeof(uint),
             true
         );
         
-        // Generate bucket ranges
-        var starts = new uint[bucketTableSize];
-        for (var i = 0; i < starts.Length; i++)
-            starts[i] = 0xffffffff;
-        _bucketStart.SetData(starts);
-        var zeros = new uint[bucketTableSize];
-        _bucketCount.SetData(zeros);
-
-        compute.SetBuffer(_buildBucketKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_buildBucketKernel, CellTableKeysID, _cellTableKeys);
-        compute.SetBuffer(_buildBucketKernel, BucketStartID, _bucketStart);
-        compute.SetBuffer(_buildBucketKernel, BucketCountID, _bucketCount);
+        // Clear buckets
+        var bucketGroups = Mathf.CeilToInt(bucketTableSize / 256f);
+        compute.Dispatch(_clearBucketsKernel, bucketGroups, 1, 1);
         
-        compute.Dispatch(_buildBucketKernel, threadGroups, 1, 1);
+        // Generate bucket ranges
+        compute.DispatchIndirect(_buildBucketKernel, _cellComputeArgs);
         
         // Physics
-        compute.SetFloat(AirPressureStrengthID, airPressureStrength);
-        compute.SetVector(MinPosID,bounds.min);
-        compute.SetVector(MaxPosID,bounds.max);
-        compute.SetBuffer(_applyForcesKernel, CellsID, output);
-        compute.SetBuffer(_applyForcesKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_applyForcesKernel, CellIndicesID, _cellIndices);
-        compute.SetBuffer(_applyForcesKernel, BucketStartID, _bucketStart);
-        compute.SetBuffer(_applyForcesKernel, BucketCountID, _bucketCount);
-        compute.SetBuffer(_applyForcesKernel, CellFullHashID, _cellFullHashes);
-        
-        compute.SetFloat(NeighborRadiusID, neighborRadius);
-        compute.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
-        compute.SetFloat(RepulsionStrengthID, repulsionStrength);
-        
-        compute.Dispatch(_applyForcesKernel, threadGroups, 1, 1);
-        
-        // Material setup
-        /*splatMaterial.SetBuffer(CellsID, output);
-        splatMaterial.SetBuffer(SortedIndicesID, _depthIndices);
-        splatMaterial.SetFloat(SizeID, size);
-        splatMaterial.SetFloat(FalloffID, falloff);
-        splatMaterial.SetVector(CamRightID, _mainCamera.transform.right);
-        splatMaterial.SetVector(CamUpID, _mainCamera.transform.up);
-
-        Graphics.DrawProceduralIndirect(
-            splatMaterial,
-            bounds,
-            MeshTopology.Triangles,
-            _args
-        );*/
+        compute.SetBuffer(_applyForcesKernel, CellsID, _cells);
+        compute.DispatchIndirect(_applyForcesKernel, _cellComputeArgs);
 
         // Raymarch
         // View matrix
-        Matrix4x4 view = _mainCamera.worldToCameraMatrix;
+        var view = _mainCamera.worldToCameraMatrix;
 
         // Projection matrix (GPU-correct)
-        Matrix4x4 proj = GL.GetGPUProjectionMatrix(
+        var proj = GL.GetGPUProjectionMatrix(
             _mainCamera.projectionMatrix,
             false // render into screen, not a texture
         );
 
         // Combine
-        Matrix4x4 viewProj = proj * view;
+        var viewProj = proj * view;
 
         // Invert
-        Matrix4x4 invViewProj = viewProj.inverse;
+        var invViewProj = viewProj.inverse;
 
         // Send to shader
         raymarchMaterial.SetMatrix(InvViewProjID, invViewProj);
         raymarchMaterial.SetVector(CameraPosID, _mainCamera.transform.position);
-        raymarchMaterial.SetVector(BoundsMinId, bounds.min);
-        raymarchMaterial.SetVector(BoundsMaxId, bounds.max);
-        
-        raymarchMaterial.SetBuffer(CellsID, output);
+        raymarchMaterial.SetBuffer(CellsID, _cells);
         
         Graphics.DrawProcedural(
             raymarchMaterial,
@@ -353,7 +249,89 @@ public class SplantController : MonoBehaviour
             MeshTopology.Triangles,
             3
         );
+    }
+    
+     private void SetParams()
+    {
+        compute.SetFloat(AirPressureStrengthID, airPressureStrength);
+        compute.SetFloat(BucketSizeID, bucketSize);
+        compute.SetFloat(NeighborRadiusID, neighborRadius);
+        compute.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
+        compute.SetFloat(RepulsionStrengthID, repulsionStrength);
+        compute.SetInt(BucketTableSizeID, bucketTableSize);
+        compute.SetInt(MaxCellsID, (int)maxCells);
+        compute.SetVector(DeathColourID, deathColour);
+        compute.SetVector(MaxPosID,bounds.max);
+        compute.SetVector(MinPosID,bounds.min);
+        compute.SetVector(NewColourID, newColour);
+        raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
+        raymarchMaterial.SetFloat(NeighborRadiusID, neighborRadius);
+        raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborRadius * neighborRadius);
+        raymarchMaterial.SetInt(BucketTableSizeID, bucketTableSize);
+        raymarchMaterial.SetVector(BoundsMaxId, bounds.max);
+        raymarchMaterial.SetVector(BoundsMinId, bounds.min);
+    }
+
+    private void SetComputeBuffers()
+    {
+        compute.SetBuffer(_prepareIndirectArgsKernel, IndirectArgsId, _cellComputeArgs);
+        compute.SetBuffer(_prepareIndirectArgsKernel, CellCountID, _cellCount);
+
+        SetCellKernalBuffers(_applyForcesKernel);
+        SetCellKernalBuffers(_clearBucketsKernel);
+        SetCellKernalBuffers(_buildBucketKernel);
+        SetCellKernalBuffers(_buildSpatialKernel);
+        SetCellKernalBuffers(_growKernel);
+    }
+
+    private void SetCellKernalBuffers(int kernel)
+    {
+        compute.SetBuffer(kernel, BucketCountID, _bucketCount);
+        compute.SetBuffer(kernel, BucketStartID, _bucketStart);
+        compute.SetBuffer(kernel, CellCountID, _cellCount);
+        compute.SetBuffer(kernel, CellFullHashID, _cellFullHashes);
+        compute.SetBuffer(kernel, CellIndicesID, _cellIndices);
+        compute.SetBuffer(kernel, CellTableKeysID, _cellTableKeys);
+    }
+
+    private void SetRaymarchBuffers()
+    {
+        raymarchMaterial.SetBuffer(BucketCountID, _bucketCount);
+        raymarchMaterial.SetBuffer(BucketStartID, _bucketStart);
+        raymarchMaterial.SetBuffer(CellFullHashID, _cellFullHashes);
+        raymarchMaterial.SetBuffer(CellIndicesID, _cellIndices);
+    }
+
+    private void ReleaseBuffers()
+    {
+        _renderArgs?.Release();
+        _bucketCount.Release();
+        _bucketStart.Release();
+        _cellCount.Release();
+        _cellFullHashes?.Release();
+        _cellIndices.Release();
+        _cellTableKeys?.Release();
+        _cellsA?.Release();
+        _cellsB?.Release();
+        _cellComputeArgs.Release();
+        _temp0?.Release();
+        _temp1?.Release();
+        _temp2?.Release();
+        _temp3?.Release();
+    }
+
+    private ComputeBuffer DispatchGrowKernel()
+    {
+        var input  = _swap ? _cellsB : _cellsA;
+        var output = _swap ? _cellsA : _cellsB;
+        // Clear output buffer
+        output.SetCounterValue(0);
+        
+        compute.SetBuffer(_growKernel, CellsInID, input);
+        compute.SetBuffer(_growKernel, CellsOutID, output);
+        compute.DispatchIndirect(_growKernel, _cellComputeArgs);
         
         _swap = !_swap;
+        return output;
     }
 }

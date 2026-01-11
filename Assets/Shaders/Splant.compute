@@ -13,6 +13,19 @@ float4 death_colour;
 float3 camera_pos;
 float3 camera_forward;
 
+#pragma kernel prepare_indirect_args
+
+RWStructuredBuffer<uint> indirect_args; // { threadGroupsX, threadGroupsY, threadGroupsZ }
+
+[numthreads(1, 1, 1)]
+void prepare_indirect_args(uint3 id : SV_DispatchThreadID)
+{
+    uint count = cell_count[0];
+    indirect_args[0] = (count + 255) / 256; // ceil divide by 256
+    indirect_args[1] = 1;
+    indirect_args[2] = 1;
+}
+
 uint hash_random(uint s)
 {
     s ^= 2747636419u;
@@ -87,27 +100,9 @@ void grow(uint id : SV_DispatchThreadID)
     }
 }
 
-#pragma kernel build_depth_keys
-
-RWStructuredBuffer<cell> cells;
-RWStructuredBuffer<float> depth_keys;
-RWStructuredBuffer<uint> depth_indices;
-
-[numthreads(256, 1, 1)]
-void build_depth_keys(uint id : SV_DispatchThreadID)
-{
-    if (id >= cell_count[0]) return;
-
-    cell c = cells[id];
-
-    float depth = dot(c.position - camera_pos, camera_forward);
-
-    depth_keys[id] = depth;
-    depth_indices[id]   = id;
-}
-
 #pragma kernel build_spatial_hash
 
+RWStructuredBuffer<cell> cells;
 RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
 RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
 RWStructuredBuffer<uint> cell_indices;
@@ -130,11 +125,20 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
     cell_indices[id] = id;
 }
 
-#pragma kernel build_bucket_ranges
+#pragma kernel clear_buckets
 
 RWStructuredBuffer<uint> bucket_start;
 RWStructuredBuffer<uint> bucket_count;
 
+[numthreads(256, 1, 1)]
+void clear_buckets(uint id : SV_DispatchThreadID)
+{
+    if (id >= bucket_table_size) return;
+    bucket_start[id] = 0xffffffff;
+    bucket_count[id] = 0;
+}
+
+#pragma kernel build_bucket_ranges
 
 // ENSURE HASHES ARE SORTED WITH RADIX SORT BEFORE RUNNING BUILD BUCKET RANGES
 [numthreads(256, 1, 1)]
