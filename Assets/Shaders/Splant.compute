@@ -128,14 +128,14 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
 #pragma kernel clear_buckets
 
 RWStructuredBuffer<uint> bucket_start;
-RWStructuredBuffer<uint> bucket_count;
+RWStructuredBuffer<uint> bucket_end;
 
 [numthreads(256, 1, 1)]
 void clear_buckets(uint id : SV_DispatchThreadID)
 {
     if (id >= bucket_table_size) return;
     bucket_start[id] = 0xffffffff;
-    bucket_count[id] = 0;
+    bucket_end[id] = 0;
 }
 
 #pragma kernel build_bucket_ranges
@@ -146,18 +146,21 @@ void build_bucket_ranges(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
 
-    uint key = cell_table_keys[id];      // masked key (sorted by this)
-    uint prev_bucket = id > 0 ? cell_table_keys[id - 1] : 0xffffffff;
-    uint bucket = key;
+    uint key = cell_table_keys[id];
+    uint prev_key = id > 0 ? cell_table_keys[id - 1] : 0xffffffff;
+    uint next_key = (id < cell_count[0] - 1) ? cell_table_keys[id + 1] : 0xffffffff;
 
-    // First element of this hash group
-    if (id == 0 || bucket != prev_bucket)
+    // First element of this bucket
+    if (id == 0 || key != prev_key)
     {
-        bucket_start[bucket] = id;
+        bucket_start[key] = id;
     }
-
-    // Every element contributes to count
-    InterlockedAdd(bucket_count[bucket], 1);
+    
+    // Last element of this bucket (exclusive end)
+    if (id == cell_count[0] - 1 || key != next_key)
+    {
+        bucket_end[key] = id + 1; // exclusive end
+    }
 }
 
 #pragma kernel apply_forces
@@ -195,24 +198,22 @@ void apply_forces(uint id : SV_DispatchThreadID)
             {
                 int3 nb = base_bucket + int3(x, y, z);
                 uint hash = hash_coord(nb);
-                
                 uint bucket = hash & (bucket_table_size - 1);
 
                 uint start = bucket_start[bucket];
-                uint count = bucket_count[bucket];
+                uint end = bucket_end[bucket];
+                
+                if (start == 0xffffffff || start >= end) continue;
 
-                if (count == 0) continue;
-
-                for (uint i = 0; i < count; i++)
+                for (uint i = start; i < end; i++)
                 {
-                    uint sorted_idx = start + i;
-                    if (sorted_idx >= cell_count[0]) continue;
+                    if (i >= cell_count[0]) continue;
                     
-                    if (cell_full_hash[cell_indices[sorted_idx]] != hash)
+                    // Verify full hash
+                    if (cell_full_hash[cell_indices[i]] != hash)
                         continue;
                     
-                    uint other_id = cell_indices[sorted_idx];
-
+                    uint other_id = cell_indices[i];
                     if (other_id == id) continue;
 
                     cell other = cells[other_id];
@@ -226,7 +227,6 @@ void apply_forces(uint id : SV_DispatchThreadID)
                     float dist = sqrt(dist_sq);
                     float3 dir = delta / dist;
 
-                    // Smooth repulsion (stronger when closer)
                     float t = 1.0 - (dist / neighbor_radius);
                     float force = repulsion_strength * t * t;
 

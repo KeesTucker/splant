@@ -70,7 +70,7 @@ Shader "Unlit/Raymarch"
             float neighbor_radius_sq;
             
             StructuredBuffer<uint> bucket_start;
-            StructuredBuffer<uint> bucket_count;
+            StructuredBuffer<uint> bucket_end;
             StructuredBuffer<uint> cell_indices;
             StructuredBuffer<uint> cell_full_hash;
             StructuredBuffer<cell> cells;
@@ -90,15 +90,16 @@ Shader "Unlit/Raymarch"
                     uint bucket = hash & (bucket_table_size - 1);
 
                     uint start = bucket_start[bucket];
-                    uint count = bucket_count[bucket];
+                    uint end = bucket_end[bucket];
 
-                    if (start == 0xffffffff)
+                    // Empty bucket check
+                    if (start == 0xffffffff || start >= end)
                         continue;
 
-                    for (uint i = 0; i < count; i++)
+                    for (uint i = start; i < end; i++)
                     {
-                        uint idx = cell_indices[start + i];
-
+                        uint idx = cell_indices[i];
+                        
                         if (cell_full_hash[idx] != hash)
                             continue;
 
