@@ -9,8 +9,12 @@ public class SplantController : MonoBehaviour
     private int _buildBucketKernel;
     private int _buildSpatialKernel;
     private int _clearBucketsKernel;
+    private int _compactCellsKernel;
+    private int _copyBackKernel;
+    private int _finalizeCompactKernel;
     private int _growKernel;
     private int _prepareIndirectArgsKernel;
+    private int _writeCompactedKernel;
     
     private static readonly int AirPressureStrengthID = Shader.PropertyToID("air_pressure_strength");
     private static readonly int BoundsMaxId = Shader.PropertyToID("bounds_max");
@@ -25,9 +29,6 @@ public class SplantController : MonoBehaviour
     private static readonly int CellIndicesID = Shader.PropertyToID("cell_indices");
     private static readonly int CellTableKeysID = Shader.PropertyToID("cell_table_keys");
     private static readonly int CellsID = Shader.PropertyToID("cells");
-    private static readonly int CellsInID    = Shader.PropertyToID("cells_in");
-    private static readonly int CellsOutID   = Shader.PropertyToID("cells_out");
-    private static readonly int DeathColourID  = Shader.PropertyToID("death_colour");
     private static readonly int DeltaTimeID       = Shader.PropertyToID("delta_time");
     private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
@@ -36,22 +37,20 @@ public class SplantController : MonoBehaviour
     private static readonly int MinPosID = Shader.PropertyToID("min_pos"); // replace with bounds min 
     private static readonly int NeighborRadiusID = Shader.PropertyToID("neighbor_radius");
     private static readonly int NeighborRadiusSqID = Shader.PropertyToID("neighbor_radius_sq");
-    private static readonly int NewColourID  = Shader.PropertyToID("new_colour");
     private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
     private static readonly int TimeID       = Shader.PropertyToID("time");
-
+    private static readonly int CellRemapID = Shader.PropertyToID("cell_remap");
+    private static readonly int CellsTempID = Shader.PropertyToID("cells_temp");
+    private static readonly int CompactCountID = Shader.PropertyToID("compact_count");
+    
     [SerializeField] private ComputeShader compute;
     [SerializeField] private ComputeShader sortCompute;
     [SerializeField] private Material raymarchMaterial;
     [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
     [SerializeField] private uint maxCells = 100000;
-
-    [SerializeField] private float size = 1f;
-    [SerializeField] private float falloff = 20f;
-    [ColorUsage(true, true)]
-    [SerializeField] private Color newColour = Color.white;
-    [ColorUsage(true, true)]
-    [SerializeField] private Color deathColour = Color.green;
+    
+    [Header("Compaction")]
+    [SerializeField] private int compactEveryNFrames = 60;
     
     [Header("Spatial Hashing")]
     [Tooltip("Must be >= neighborRadius, should be 1.5x or more")]
@@ -71,19 +70,19 @@ public class SplantController : MonoBehaviour
     private ComputeBuffer _cellCount;
     private ComputeBuffer _cellFullHashes;
     private ComputeBuffer _cellIndices;
-    private ComputeBuffer _cellTableKeys;
+    private ComputeBuffer _cellRemap;
     private ComputeBuffer _cells;
-    private ComputeBuffer _cellsA;
-    private ComputeBuffer _cellsB;
+    private ComputeBuffer _cellsTemp;
+    private ComputeBuffer _cellTableKeys;
+    private ComputeBuffer _compactCount;
     private ComputeBuffer _renderArgs;
     private ComputeBuffer _temp0;
     private ComputeBuffer _temp1;
     private ComputeBuffer _temp2;
     private ComputeBuffer _temp3;
 
-    private bool _swap;
+    private int _frameCount;
     private Camera _mainCamera;
-
     private DeviceRadixSort _deviceRadixSort;
 
     private void Awake()
@@ -101,8 +100,12 @@ public class SplantController : MonoBehaviour
         _buildBucketKernel = compute.FindKernel("build_bucket_ranges");
         _buildSpatialKernel = compute.FindKernel("build_spatial_hash");
         _clearBucketsKernel = compute.FindKernel("clear_buckets");
-        _growKernel       = compute.FindKernel("grow");
+        _compactCellsKernel = compute.FindKernel("compact_cells");
+        _copyBackKernel = compute.FindKernel("copy_back");
+        _finalizeCompactKernel = compute.FindKernel("finalize_compact");
+        _growKernel = compute.FindKernel("grow");
         _prepareIndirectArgsKernel = compute.FindKernel("prepare_indirect_args");
+        _writeCompactedKernel = compute.FindKernel("write_compacted");
     }
 
     private void InitBuffers()
@@ -112,33 +115,30 @@ public class SplantController : MonoBehaviour
         _bucketEnd = new ComputeBuffer(bucketTableSize, sizeof(uint));
         _bucketStart = new ComputeBuffer(bucketTableSize, sizeof(uint));
         _cellComputeArgs = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
-        _cellCount = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Structured);
+        _cellCount = new ComputeBuffer(1, sizeof(uint));
         _cellFullHashes = new ComputeBuffer((int)maxCells, sizeof(uint));
         _cellIndices = new ComputeBuffer((int)maxCells, sizeof(uint));
+        _cellRemap = new ComputeBuffer((int)maxCells, sizeof(uint));
+        _cells = new ComputeBuffer((int)maxCells, stride);
+        _cellsTemp = new ComputeBuffer((int)maxCells, stride);
         _cellTableKeys = new ComputeBuffer((int)maxCells, sizeof(uint));
-        _cellsA = new ComputeBuffer((int)maxCells, stride, ComputeBufferType.Append);
-        _cellsB = new ComputeBuffer((int)maxCells, stride, ComputeBufferType.Append);
+        _compactCount = new ComputeBuffer(1, sizeof(uint));
         _renderArgs = new ComputeBuffer(4, sizeof(uint), ComputeBufferType.IndirectArguments);
 
-        // Init args
+        // Init
         _cellComputeArgs.SetData(new uint[] { 1, 1, 1 });
-        _renderArgs.SetData(new[] { 6, 0, 0, 0 });
+        _renderArgs.SetData(new[] { 6, 1, 0, 0 }); // Start with 1 cell
+        _cellCount.SetData(new[] { 1u });
+        _compactCount.SetData(new[] { 0u });
         
         // Seed with one cell
-        _cellsA.SetData(new[] {
+        _cells.SetData(new[] {
             new Cell
             {
                 age = 0,
-                color = newColour,
                 position = Vector3.zero
             }
         });
-        _cellsA.SetCounterValue(1);
-        _cellsB.SetCounterValue(0);
-        _cellCount.SetData(new[] { 1 });
-        
-        // Start with cells A
-        _cells = _cellsA;
     }
 
     private void InitRadixSort()
@@ -146,10 +146,7 @@ public class SplantController : MonoBehaviour
         _deviceRadixSort = new DeviceRadixSort(
             compute: sortCompute,
             allocationSize: (int)maxCells,
-            ref _temp0,
-            ref _temp1,
-            ref _temp2,
-            ref _temp3
+            ref _temp0, ref _temp1, ref _temp2, ref _temp3
         );
     }
 
@@ -177,15 +174,20 @@ public class SplantController : MonoBehaviour
         compute.SetFloat(TimeID, Time.time);
     
         // Grow cells
-        _cells = DispatchGrowKernel();
-    
-        // Copy count from append buffer to cell_count buffer
-        ComputeBuffer.CopyCount(_cells, _cellCount, 0);
-    
+        compute.DispatchIndirect(_growKernel, _cellComputeArgs);
+        
+        // Compact every N frames to remove dead cells
+        _frameCount++;
+        if (_frameCount >= compactEveryNFrames)
+        {
+            _frameCount = 0;
+            CompactCells();
+        }
+        
         // Prepare indirect args
         compute.Dispatch(_prepareIndirectArgsKernel, 1, 1, 1);
-    
-        // Copy count for rendering args
+        
+        // Copy count for rendering
         ComputeBuffer.CopyCount(_cells, _renderArgs, sizeof(uint));
     
         // Sort needs CPU count. TODO: modify to allow DispatchIndirect
@@ -194,7 +196,6 @@ public class SplantController : MonoBehaviour
         var cellCount = (int)count[0];
         
         // Build spatial hash
-        compute.SetBuffer(_buildSpatialKernel, CellsID, _cells);
         compute.DispatchIndirect(_buildSpatialKernel, _cellComputeArgs);
         
         // Sort by hash
@@ -207,7 +208,7 @@ public class SplantController : MonoBehaviour
             true
         );
         
-        // Clear buckets
+        // Clear and build buckets
         var bucketGroups = Mathf.CeilToInt(bucketTableSize / 256f);
         compute.Dispatch(_clearBucketsKernel, bucketGroups, 1, 1);
         
@@ -215,17 +216,15 @@ public class SplantController : MonoBehaviour
         compute.DispatchIndirect(_buildBucketKernel, _cellComputeArgs);
         
         // Physics
-        compute.SetBuffer(_applyForcesKernel, CellsID, _cells);
         compute.DispatchIndirect(_applyForcesKernel, _cellComputeArgs);
 
-        // Raymarch
+        // Rendering
         var view = _mainCamera.worldToCameraMatrix;
         var proj = GL.GetGPUProjectionMatrix(_mainCamera.projectionMatrix, false);
         var invViewProj = (proj * view).inverse;
 
         raymarchMaterial.SetMatrix(InvViewProjID, invViewProj);
         raymarchMaterial.SetVector(CameraPosID, _mainCamera.transform.position);
-        raymarchMaterial.SetBuffer(CellsID, _cells);
         
         Graphics.DrawProcedural(
             raymarchMaterial,
@@ -244,10 +243,8 @@ public class SplantController : MonoBehaviour
         compute.SetFloat(RepulsionStrengthID, repulsionStrength);
         compute.SetInt(BucketTableSizeID, bucketTableSize);
         compute.SetInt(MaxCellsID, (int)maxCells);
-        compute.SetVector(DeathColourID, deathColour);
         compute.SetVector(MaxPosID, bounds.max);
         compute.SetVector(MinPosID, bounds.min);
-        compute.SetVector(NewColourID, newColour);
         
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(NeighborRadiusID, neighborRadius);
@@ -256,19 +253,37 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetVector(BoundsMaxId, bounds.max);
         raymarchMaterial.SetVector(BoundsMinId, bounds.min);
     }
-
+    
     private void SetComputeBuffers()
     {
         compute.SetBuffer(_prepareIndirectArgsKernel, IndirectArgsId, _cellComputeArgs);
         compute.SetBuffer(_prepareIndirectArgsKernel, CellCountID, _cellCount);
 
         SetCellKernalBuffers(_applyForcesKernel);
-        SetCellKernalBuffers(_clearBucketsKernel);
         SetCellKernalBuffers(_buildBucketKernel);
         SetCellKernalBuffers(_buildSpatialKernel);
+        SetCellKernalBuffers(_clearBucketsKernel);
         SetCellKernalBuffers(_growKernel);
+        
+        // Compaction kernels
+        compute.SetBuffer(_compactCellsKernel, CellsID, _cells);
+        compute.SetBuffer(_compactCellsKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_compactCellsKernel, CellRemapID, _cellRemap);
+        compute.SetBuffer(_compactCellsKernel, CompactCountID, _compactCount);
+        
+        compute.SetBuffer(_writeCompactedKernel, CellsID, _cells);
+        compute.SetBuffer(_writeCompactedKernel, CellsTempID, _cellsTemp);
+        compute.SetBuffer(_writeCompactedKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_writeCompactedKernel, CellRemapID, _cellRemap);
+        
+        compute.SetBuffer(_copyBackKernel, CellsID, _cells);
+        compute.SetBuffer(_copyBackKernel, CellsTempID, _cellsTemp);
+        compute.SetBuffer(_copyBackKernel, CompactCountID, _compactCount);
+        
+        compute.SetBuffer(_finalizeCompactKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_finalizeCompactKernel, CompactCountID, _compactCount);
     }
-
+    
     private void SetCellKernalBuffers(int kernel)
     {
         compute.SetBuffer(kernel, BucketEndID, _bucketEnd);
@@ -277,6 +292,7 @@ public class SplantController : MonoBehaviour
         compute.SetBuffer(kernel, CellFullHashID, _cellFullHashes);
         compute.SetBuffer(kernel, CellIndicesID, _cellIndices);
         compute.SetBuffer(kernel, CellTableKeysID, _cellTableKeys);
+        compute.SetBuffer(kernel, CellsID, _cells);
     }
 
     private void SetRaymarchBuffers()
@@ -285,6 +301,7 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetBuffer(BucketStartID, _bucketStart);
         raymarchMaterial.SetBuffer(CellFullHashID, _cellFullHashes);
         raymarchMaterial.SetBuffer(CellIndicesID, _cellIndices);
+        raymarchMaterial.SetBuffer(CellsID, _cells);
     }
 
     private void ReleaseBuffers()
@@ -295,28 +312,33 @@ public class SplantController : MonoBehaviour
         _cellCount?.Release();
         _cellFullHashes?.Release();
         _cellIndices?.Release();
+        _cellRemap?.Release();
+        _cells?.Release();
+        _cellsTemp?.Release();
         _cellTableKeys?.Release();
-        _cellsA?.Release();
-        _cellsB?.Release();
         _cellComputeArgs?.Release();
+        _compactCount?.Release();
         _temp0?.Release();
         _temp1?.Release();
         _temp2?.Release();
         _temp3?.Release();
     }
-
-    private ComputeBuffer DispatchGrowKernel()
+    
+    private void CompactCells()
     {
-        var input  = _swap ? _cellsB : _cellsA;
-        var output = _swap ? _cellsA : _cellsB;
-        // Clear output buffer
-        output.SetCounterValue(0);
+        // Reset compact counter
+        _compactCount.SetData(new[] { 0u });
         
-        compute.SetBuffer(_growKernel, CellsInID, input);
-        compute.SetBuffer(_growKernel, CellsOutID, output);
-        compute.DispatchIndirect(_growKernel, _cellComputeArgs);
+        // Pass 1: Mark alive cells and assign new indices
+        compute.DispatchIndirect(_compactCellsKernel, _cellComputeArgs);
         
-        _swap = !_swap;
-        return output;
+        // Pass 2: Write to temp buffer
+        compute.DispatchIndirect(_writeCompactedKernel, _cellComputeArgs);
+        
+        // Pass 3: Copy back
+        compute.DispatchIndirect(_copyBackKernel, _cellComputeArgs);
+        
+        // Pass 4: Update cell_count
+        compute.Dispatch(_finalizeCompactKernel, 1, 1, 1);
     }
 }

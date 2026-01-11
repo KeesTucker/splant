@@ -1,17 +1,12 @@
 #include "Cell.hlsl"
 #include "Helpers.hlsl"
 
-StructuredBuffer<uint> cell_count;
-StructuredBuffer<cell> cells_in;
-AppendStructuredBuffer<cell> cells_out;
+RWStructuredBuffer<uint> cell_count; // [0] = alive count
+RWStructuredBuffer<cell> cells;
 
 uint max_cells;
 float time;
 float delta_time;
-float4 new_colour;
-float4 death_colour;
-float3 camera_pos;
-float3 camera_forward;
 
 #pragma kernel prepare_indirect_args
 
@@ -60,7 +55,6 @@ cell make_child(cell parent, uint id)
 {
     cell child;
     child.age = 0;
-    child.color = new_colour;
     float3 offset = float3(
         random(id * 44317) - 0.5,
         random(id * 3231) - 0.5,
@@ -75,34 +69,100 @@ cell make_child(cell parent, uint id)
 [numthreads(256, 1, 1)]
 void grow(uint id : SV_DispatchThreadID)
 {
-    if (id >= max_cells) return;
-    
     if (id >= cell_count[0]) return;
     
-    cell parent = cells_in[id];
-    
-    parent.age += delta_time;
+    cell c = cells[id];
+    c.age += delta_time;
 
-    if (should_die(parent, id)) return;
-    
-    float age_factor = exp(-parent.age * 1);
-    parent.color = lerp(death_colour, new_colour, age_factor);
-    
-    cells_out.Append(parent);
-    
-    if (cell_count[0] * 100u < max_cells * 95u)
+    // Check if should die
+    if (should_die(c, id))
     {
-        if (should_split(parent, id))
+        // Mark as dead by setting age to negative
+        c.age = -1.0;
+        cells[id] = c;
+        return;
+    }
+    
+    // Write back updated cell
+    cells[id] = c;
+    
+    // Try to split
+    if (should_split(c, id) && cell_count[0] < max_cells * 0.95)
+    {
+        uint child_idx;
+        InterlockedAdd(cell_count[0], 1, child_idx);
+
+        // Could get counter drift if this is out of range and doesn't make a child but has already incremented
+        // counter. Resolved in finalize compact.
+        if (child_idx < max_cells)
         {
-            cell child = make_child(parent, id);
-            cells_out.Append(child);
+            cells[child_idx] = make_child(c, id);
         }
     }
 }
 
+#pragma kernel compact_cells
+
+RWStructuredBuffer<uint> compact_count; // temp counter for compaction
+RWStructuredBuffer<uint> cell_remap;    // old index -> new index mapping
+
+[numthreads(256, 1, 1)]
+void compact_cells(uint id : SV_DispatchThreadID)
+{
+    if (id >= cell_count[0]) return;
+    
+    cell c = cells[id];
+    
+    // If alive, claim a spot in compacted array
+    if (c.age >= 0)
+    {
+        uint new_idx;
+        InterlockedAdd(compact_count[0], 1, new_idx);
+        cell_remap[id] = new_idx;
+    }
+    else
+    {
+        cell_remap[id] = 0xffffffff; // mark as dead
+    }
+}
+
+#pragma kernel write_compacted
+
+RWStructuredBuffer<cell> cells_temp;
+
+[numthreads(256, 1, 1)]
+void write_compacted(uint id : SV_DispatchThreadID)
+{
+    if (id >= cell_count[0]) return;
+    
+    uint new_idx = cell_remap[id];
+    
+    if (new_idx != 0xffffffff)
+    {
+        cells_temp[new_idx] = cells[id];
+    }
+}
+
+#pragma kernel copy_back
+
+[numthreads(256, 1, 1)]
+void copy_back(uint id : SV_DispatchThreadID)
+{
+    if (id >= compact_count[0]) return;
+    cells[id] = cells_temp[id];
+}
+
+#pragma kernel finalize_compact
+
+[numthreads(1, 1, 1)]
+void finalize_compact(uint3 id : SV_DispatchThreadID)
+{
+    cell_count[0] = min(compact_count[0], max_cells);
+    compact_count[0] = 0; // reset for next compaction
+}
+
 #pragma kernel build_spatial_hash
 
-RWStructuredBuffer<cell> cells;
 RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
 RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
 RWStructuredBuffer<uint> cell_indices;
@@ -116,6 +176,10 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
     if (id >= cell_count[0]) return;
     
     cell c = cells[id];
+    
+    // Skip dead cells
+    if (c.age < 0) return;
+    
     int3 bucket = floor(c.position / bucket_size);
     uint full = hash_coord(bucket);
     uint table = full & (bucket_table_size - 1);
@@ -179,6 +243,9 @@ void apply_forces(uint id : SV_DispatchThreadID)
 
     cell c = cells[id];
     
+    // Skip dead cells
+    if (c.age < 0) return;
+    
     // Air pressure force
     float r2 = dot(c.position, c.position) + 1e-8;
     float r  = sqrt(r2);
@@ -217,6 +284,9 @@ void apply_forces(uint id : SV_DispatchThreadID)
                     if (other_id == id) continue;
 
                     cell other = cells[other_id];
+                    
+                    // Skip if other is dead
+                    if (other.age < 0) continue;
 
                     float3 delta = c.position - other.position;
                     float dist_sq = dot(delta, delta);
