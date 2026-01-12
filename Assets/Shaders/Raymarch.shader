@@ -85,7 +85,7 @@ Shader "Unlit/Raymarch"
                 for (int x = -1; x <= 1; x++)
                 {
                     int3 cellc = base_cell + int3(x, y, z);
-                    uint hash = hash_coord(cellc);
+                    uint hash = fast_hash_coord(cellc);
                     uint bucket = hash & (bucket_table_size - 1);
 
                     uint start = bucket_start[bucket];
@@ -94,10 +94,12 @@ Shader "Unlit/Raymarch"
                     if (start == 0xffffffff || start >= end)
                         continue;
                     
-                    float3 bucket_center = (float3(cellc) + 0.5) * bucket_size;
+                    // Cheap blobby distance checks
+                    /*float3 bucket_center = (float3(cellc) + 0.5) * bucket_size;
                     float3 delta = p - bucket_center;
                     float dist = length(delta);
                     float falloff = 1.0 - saturate(dist / (bucket_size * 1.732)); // 1.732 ≈ sqrt(3), diagonal
+                    */
                     
                     for (uint i = start; i < end; i++)
                     {
@@ -107,7 +109,7 @@ Shader "Unlit/Raymarch"
                             continue;
                         
                         // Expensive per cell distance checks
-                        /*float3 delta = p - cells[idx].position;
+                        float3 delta = p - cells[idx].position;
                         float r2 = dot(delta, delta);
                         
                         if (r2 < neighbor_radius_sq)
@@ -115,9 +117,9 @@ Shader "Unlit/Raymarch"
                             float t = r2 / neighbor_radius_sq;
                             float w = (1.0 - t) * (1.0 - t);  // quadratic falloff
                             d += w;
-                        }*/
+                        }
                         
-                        d += falloff;
+                        //d += falloff;
                     }
                 }
 

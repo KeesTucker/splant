@@ -8,6 +8,5 @@ namespace Structs
     {
         public Vector3 position;
         public float age;
-        public float depth;
     }
 }

@@ -1,12 +1,29 @@
+#include "Bond.hlsl"
 #include "Cell.hlsl"
 #include "Helpers.hlsl"
 
-RWStructuredBuffer<uint> cell_count; // [0] = alive count
+RWStructuredBuffer<bond> bonds;
 RWStructuredBuffer<cell> cells;
-
-uint max_cells;
-float time;
+RWStructuredBuffer<uint> bucket_end;
+RWStructuredBuffer<uint> bucket_start;
+RWStructuredBuffer<uint> cell_count; // [0] = alive cell count
+RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
+RWStructuredBuffer<uint> cell_indices;
+RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
+float bond_range_sq;
+float bond_stiffness;
+float bucket_size;
 float delta_time;
+float neighbor_radius;
+float neighbor_radius_sq;
+float repulsion_strength;
+float time;
+float3 max_pos;
+float3 min_pos;
+int max_bonds_per_cell;
+uint bucket_table_size;
+uint max_bonds;
+uint max_cells;
 
 #pragma kernel prepare_indirect_args
 
@@ -21,34 +38,94 @@ void prepare_indirect_args(uint3 id : SV_DispatchThreadID)
     indirect_args[2] = 1;
 }
 
-uint hash_random(uint s)
-{
-    s ^= 2747636419u;
-    s *= 2654435769u;
-    s ^= s >> 16;
-    s *= 2654435769u;
-    s ^= s >> 16;
-    s *= 2654435769u;
-    return s;
-}
-
-float random(uint seed)
-{
-    return float(hash_random(seed)) / 4294967295.0;
-}
-
-bool should_split(cell c, uint id)
+bool should_split(cell c, uint id, float time)
 {
     float r = random(id + (uint)(time * 1000));
     float agePenalty = exp(-c.age * 0.5); // Rapid dropoff
     return r < 0.05 * agePenalty;
 }
 
-bool should_die(cell c, uint id)
+bool should_die(cell c, uint id, float time)
 {
     float r = random(id + (uint)(time * 1000) + 12345); // decorrelate
     float age_factor = 1.0 - exp(-c.age * 0.5); // 0 → 1 as age increases
     return r < 0.045 * age_factor;
+}
+
+// TODO: compact bonds if we re add cell death.
+
+void add_bonds(cell c, uint id)
+{
+    int3 base_bucket = floor(c.position / bucket_size);
+    
+    uint alive_count = cell_count[0];
+    
+    int num_bonds_generated = 0;
+    uint bond_start_id = id * max_bonds_per_cell;
+    
+    uint seed = wang_hash(id);
+    uint offset = seed % 27;
+    
+    for (uint k = 0; k < 27; k++)
+    {
+        int3 nb = base_bucket + bucket_offsets[(k + offset) % 27];
+        uint hash = fast_hash_coord(nb);
+        uint bucket = hash & (bucket_table_size - 1);
+
+        uint start = bucket_start[bucket];
+        uint end = bucket_end[bucket];
+                
+        if (start == 0xffffffff || start >= end) continue;
+
+        for (uint i = start; i < end; i++)
+        {
+            if (i >= alive_count) continue;
+                    
+            // Verify full hash
+            if (cell_full_hash[cell_indices[i]] != hash)
+                continue;
+                    
+            // Avoid self
+            uint other_id = cell_indices[i];
+            if (other_id == id) continue;
+
+            cell other = cells[other_id];
+                    
+            // Skip if other is dead
+            if (other.age < 0) continue;
+
+            float3 delta = c.position - other.position;
+            float dist_sq = dot(delta, delta);
+
+            if (dist_sq > bond_range_sq || dist_sq < 1e-6)
+                continue;
+            
+            float dist = sqrt(dist_sq);
+            bond b;
+            b.cell_a = id;
+            b.cell_b = other_id;
+            b.target_distance = dist;
+                    
+            bonds[bond_start_id + num_bonds_generated] = b;
+                    
+            num_bonds_generated++;
+            
+            if (num_bonds_generated >= max_bonds_per_cell)
+            {
+                return;
+            }
+        }
+    }
+    
+    bond invalid;
+    invalid.cell_a = 0xffffffff;
+    invalid.cell_b = 0xffffffff;
+    invalid.target_distance = 0;
+    
+    for (int i = num_bonds_generated; i < max_bonds_per_cell; i++)
+    {
+        bonds[bond_start_id + i] = invalid;
+    }
 }
 
 cell make_child(cell parent, uint id)
@@ -61,6 +138,9 @@ cell make_child(cell parent, uint id)
         random(id * 432457) - 0.5
     );
     child.position = parent.position + offset * 0.5;
+    
+    add_bonds(child, id);
+    
     return child;
 }
 
@@ -79,19 +159,20 @@ void grow(uint id : SV_DispatchThreadID)
     c.age += delta_time;
 
     // Check if should die
-    if (should_die(c, id))
+    // No death currently
+    /*if (should_die(c, id, time))
     {
         // Mark as dead by setting age to negative
         c.age = -1.0;
         cells[id] = c;
         return;
-    }
+    }*/
     
     // Write back updated cell
     cells[id] = c;
     
     // Try to split
-    if (should_split(c, id) && cell_count[0] < max_cells * 0.95)
+    if (should_split(c, id, time) && cell_count[0] < max_cells * 0.95)
     {
         uint child_idx;
         InterlockedAdd(cell_count[0], 1, child_idx);
@@ -147,6 +228,45 @@ void write_compacted(uint id : SV_DispatchThreadID)
     }
 }
 
+#pragma kernel remap_bonds
+
+[numthreads(256, 1, 1)]
+void remap_bonds(uint id : SV_DispatchThreadID)
+{
+    if (id >= max_cells) return;
+    
+    uint bond_start = id * max_bonds_per_cell;
+    uint bond_end = min(bond_start + max_bonds_per_cell, max_bonds);
+    
+    for (uint i = bond_start; i < bond_end; i++)
+    {
+        bond b = bonds[i];
+        
+        // Skip invalid bonds
+        if (b.cell_a == 0xffffffff) break;
+        
+        // Get new indices for both cells
+        uint new_a = cell_remap[b.cell_a];
+        uint new_b = cell_remap[b.cell_b];
+        
+        // If either cell was deleted, invalidate the bond
+        if (new_a == 0xffffffff || new_b == 0xffffffff)
+        {
+            b.cell_a = 0xffffffff;
+            b.cell_b = 0xffffffff;
+            b.target_distance = 0;
+        }
+        else
+        {
+            // Update to new indices
+            b.cell_a = new_a;
+            b.cell_b = new_b;
+        }
+        
+        bonds[i] = b;
+    }
+}
+
 #pragma kernel copy_back
 
 [numthreads(256, 1, 1)]
@@ -167,13 +287,6 @@ void finalize_compact(uint3 id : SV_DispatchThreadID)
 
 #pragma kernel build_spatial_hash
 
-RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
-RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
-RWStructuredBuffer<uint> cell_indices;
-
-float bucket_size;
-uint bucket_table_size;
-
 [numthreads(256, 1, 1)]
 void build_spatial_hash(uint id : SV_DispatchThreadID)
 {
@@ -182,7 +295,7 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
     cell c = cells[id];
     
     int3 bucket = floor(c.position / bucket_size);
-    uint full = hash_coord(bucket);
+    uint full = fast_hash_coord(bucket);
     uint table = full & (bucket_table_size - 1);
 
     cell_full_hash[id] = full;
@@ -191,9 +304,6 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
 }
 
 #pragma kernel clear_buckets
-
-RWStructuredBuffer<uint> bucket_start;
-RWStructuredBuffer<uint> bucket_end;
 
 [numthreads(256, 1, 1)]
 void clear_buckets(uint id : SV_DispatchThreadID)
@@ -228,17 +338,10 @@ void build_bucket_ranges(uint id : SV_DispatchThreadID)
     }
 }
 
-#pragma kernel apply_forces
-
-float air_pressure_strength;
-float neighbor_radius;
-float neighbor_radius_sq;
-float repulsion_strength;
-float3 max_pos;
-float3 min_pos;
+#pragma kernel apply_collision_forces
 
 [numthreads(256, 1, 1)]
-void apply_forces(uint id : SV_DispatchThreadID)
+void apply_collision_forces(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
 
@@ -247,25 +350,19 @@ void apply_forces(uint id : SV_DispatchThreadID)
     // Skip dead cells
     if (c.age < 0) return;
     
-    // Air pressure force
-    float r2 = dot(c.position, c.position) + 1e-8;
-    float r  = sqrt(r2);
-    float3 pressure_dir = -c.position / r;
-
-    float3 accel =
-        pressure_dir *
-        air_pressure_strength *
-        r2;
-    
     // Spatial hash repulsion
     int3 base_bucket = floor(c.position / bucket_size);
 
+    uint alive_count = cell_count[0];
+    
+    float3 accel;
+    
     for (int z = -1; z <= 1; z++)
         for (int y = -1; y <= 1; y++)
             for (int x = -1; x <= 1; x++)
             {
                 int3 nb = base_bucket + int3(x, y, z);
-                uint hash = hash_coord(nb);
+                uint hash = fast_hash_coord(nb);
                 uint bucket = hash & (bucket_table_size - 1);
 
                 uint start = bucket_start[bucket];
@@ -275,7 +372,7 @@ void apply_forces(uint id : SV_DispatchThreadID)
 
                 for (uint i = start; i < end; i++)
                 {
-                    if (i >= cell_count[0]) continue;
+                    if (i >= alive_count) continue;
                     
                     // Verify full hash
                     if (cell_full_hash[cell_indices[i]] != hash)
@@ -295,9 +392,9 @@ void apply_forces(uint id : SV_DispatchThreadID)
                     if (dist_sq > neighbor_radius_sq || dist_sq < 1e-6)
                         continue;
 
-                    float dist = sqrt(dist_sq);
-                    float3 dir = delta / dist;
-
+                    float inv_dist = rsqrt(dist_sq);
+                    float3 dir = delta * inv_dist;
+                    float dist = dist_sq * inv_dist;
                     float t = 1.0 - (dist / neighbor_radius);
                     float force = repulsion_strength * t * t;
 
@@ -307,6 +404,50 @@ void apply_forces(uint id : SV_DispatchThreadID)
     
     // Integrate
     c.position += accel * delta_time;
+    c.position = clamp(c.position, min_pos, max_pos);
+    cells[id] = c;
+}
+
+#pragma kernel apply_bond_forces
+
+[numthreads(256, 1, 1)]
+void apply_bond_forces(uint id : SV_DispatchThreadID)
+{
+    if (id >= cell_count[0]) return;
+    
+    cell c = cells[id];
+    if (c.age < 0) return;
+    
+    float3 force = float3(0, 0, 0);
+    
+    uint bond_start = id * max_bonds_per_cell;
+    uint bond_end = min(bond_start + max_bonds_per_cell, max_bonds);
+    
+    for (uint i = bond_start; i < bond_end; i++)
+    {
+        bond b = bonds[i];
+        
+        if (b.cell_a == 0xffffffff) break; // Invalid bond, we're done
+        
+        cell other = cells[b.cell_b];
+        if (other.age < 0) continue;
+        
+        float3 delta = other.position - c.position;
+        float dist_sq = dot(delta, delta);
+
+        if (dist_sq < 1e-6) continue;
+
+        float inv_dist = rsqrt(dist_sq);
+        float dist = dist_sq * inv_dist;
+        float3 dir = delta * inv_dist;
+
+        float diff = dist - b.target_distance;
+        float force_mag = diff * bond_stiffness;
+
+        force += dir * force_mag;
+    }
+    
+    c.position += force * delta_time;
     c.position = clamp(c.position, min_pos, max_pos);
     cells[id] = c;
 }
