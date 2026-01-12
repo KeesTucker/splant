@@ -95,21 +95,21 @@ Shader "Unlit/Raymarch"
                         continue;
                     
                     // Cheap blobby distance checks
-                    /*float3 bucket_center = (float3(cellc) + 0.5) * bucket_size;
+                    float3 bucket_center = (float3(cellc) + 0.5) * bucket_size;
                     float3 delta = p - bucket_center;
                     float dist = length(delta);
                     float falloff = 1.0 - saturate(dist / (bucket_size * 1.732)); // 1.732 ≈ sqrt(3), diagonal
-                    */
+                    
                     
                     for (uint i = start; i < end; i++)
                     {
                         uint idx = cell_indices[i];
-                        // Comment hash check to visualize hash contention
+                        // Invert hash check to visualize hash contention
                         if (cell_full_hash[idx] != hash || cells[idx].age < 0)
                             continue;
                         
                         // Expensive per cell distance checks
-                        float3 delta = p - cells[idx].position;
+                        /*float3 delta = p - cells[idx].position;
                         float r2 = dot(delta, delta);
                         
                         if (r2 < neighbor_radius_sq)
@@ -117,9 +117,9 @@ Shader "Unlit/Raymarch"
                             float t = r2 / neighbor_radius_sq;
                             float w = (1.0 - t) * (1.0 - t);  // quadratic falloff
                             d += w;
-                        }
+                        }*/
                         
-                        //d += falloff;
+                        d += falloff;
                     }
                 }
 

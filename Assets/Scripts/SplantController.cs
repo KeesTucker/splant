@@ -6,6 +6,7 @@ using UnityEngine.Serialization;
 
 public class SplantController : MonoBehaviour
 {
+    private int _addBondsKernel;
     private int _applyBondForcesKernel;
     private int _applyCollisionForcesKernel;
     private int _buildBucketKernel;
@@ -15,12 +16,14 @@ public class SplantController : MonoBehaviour
     private int _copyBackKernel;
     private int _finalizeCompactKernel;
     private int _growKernel;
+    private int _initBondsKernel;
     private int _prepareIndirectArgsKernel;
     private int _remapBondsKernel;
     private int _writeCompactedKernel;
     
+    private static readonly int BondBendStiffnessID       = Shader.PropertyToID("bond_bend_stiffness");
+    private static readonly int BondLinearStiffnessID = Shader.PropertyToID("bond_linear_stiffness");
     private static readonly int BondRangeSqID = Shader.PropertyToID("bond_range_sq");
-    private static readonly int BondStiffnessID = Shader.PropertyToID("bond_stiffness");
     private static readonly int BondsID = Shader.PropertyToID("bonds");
     private static readonly int BoundsMaxId = Shader.PropertyToID("bounds_max");
     private static readonly int BoundsMinId = Shader.PropertyToID("bounds_min");
@@ -39,8 +42,8 @@ public class SplantController : MonoBehaviour
     private static readonly int CompactCountID = Shader.PropertyToID("compact_count");
     private static readonly int DeltaTimeID = Shader.PropertyToID("delta_time");
     private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
-    private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
+    private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
     private static readonly int MaxBondsPerCellID = Shader.PropertyToID("max_bonds_per_cell");
     private static readonly int MaxCellsID   = Shader.PropertyToID("max_cells");
     private static readonly int MaxPosID = Shader.PropertyToID("max_pos"); // replace with bounds max
@@ -72,7 +75,8 @@ public class SplantController : MonoBehaviour
     
     [Header("Bonds")] 
     [SerializeField] private float bondRange = 0.05f;
-    [SerializeField] private float bondStiffness = 1f;
+    [SerializeField] private float bondLinearStiffness = 1f;
+    [SerializeField] private float bondBendStiffness = 1f;
     [SerializeField] private uint maxBondsPerCell = 6;
     
     private ComputeBuffer _bonds;
@@ -107,6 +111,7 @@ public class SplantController : MonoBehaviour
 
     private void FindKernels()
     {
+        _addBondsKernel = compute.FindKernel("add_bonds");
         _applyBondForcesKernel = compute.FindKernel("apply_bond_forces");
         _applyCollisionForcesKernel = compute.FindKernel("apply_collision_forces");
         _buildBucketKernel = compute.FindKernel("build_bucket_ranges");
@@ -116,6 +121,7 @@ public class SplantController : MonoBehaviour
         _copyBackKernel = compute.FindKernel("copy_back");
         _finalizeCompactKernel = compute.FindKernel("finalize_compact");
         _growKernel = compute.FindKernel("grow");
+        _initBondsKernel = compute.FindKernel("init_bonds");
         _prepareIndirectArgsKernel = compute.FindKernel("prepare_indirect_args");
         _remapBondsKernel = compute.FindKernel("remap_bonds");
         _writeCompactedKernel = compute.FindKernel("write_compacted");
@@ -149,9 +155,14 @@ public class SplantController : MonoBehaviour
             new Cell
             {
                 age = 0,
-                position = Vector3.zero
+                position = Vector3.zero,
+                polarity = Vector3.up
             }
         });
+        
+        // Init entire bond buffer to invalid
+        compute.SetBuffer(_initBondsKernel, BondsID, _bonds);
+        compute.DispatchIndirect(_initBondsKernel, _cellComputeArgs);
     }
 
     private void InitRadixSort()
@@ -237,6 +248,9 @@ public class SplantController : MonoBehaviour
         // Build bucket ranges
         compute.DispatchIndirect(_buildBucketKernel, _cellComputeArgs);
         
+        // Bonds
+        compute.DispatchIndirect(_addBondsKernel, _cellComputeArgs);
+        
         // Physics
         compute.DispatchIndirect(_applyCollisionForcesKernel, _cellComputeArgs);
         compute.DispatchIndirect(_applyBondForcesKernel, _cellComputeArgs);
@@ -259,8 +273,9 @@ public class SplantController : MonoBehaviour
     
     private void SetParams()
     {
+        compute.SetFloat(BondBendStiffnessID, bondBendStiffness);
+        compute.SetFloat(BondLinearStiffnessID, bondLinearStiffness);
         compute.SetFloat(BondRangeSqID, bondRange * bondRange);
-        compute.SetFloat(BondStiffnessID, bondStiffness);
         compute.SetFloat(BucketSizeID, bucketSize);
         compute.SetFloat(NeighborRadiusID, neighborCollisionRadius);
         compute.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
@@ -285,6 +300,7 @@ public class SplantController : MonoBehaviour
         compute.SetBuffer(_prepareIndirectArgsKernel, IndirectArgsId, _cellComputeArgs);
         compute.SetBuffer(_prepareIndirectArgsKernel, CellCountID, _cellCount);
 
+        SetCellKernalBuffers(_addBondsKernel);
         SetCellKernalBuffers(_applyBondForcesKernel);
         SetCellKernalBuffers(_applyCollisionForcesKernel);
         SetCellKernalBuffers(_buildBucketKernel);

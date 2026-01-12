@@ -39,3 +39,11 @@ uint fast_hash_coord(int3 coord)
     h ^= h >> 13;
     return h;
 }
+
+float3 safe_normalize(float3 v)
+{
+    float len_sq = dot(v, v);
+    if (len_sq < 1e-8)
+        return float3(0, 1, 0); // probably shouldn't default to up? Idk?
+    return v * rsqrt(len_sq);
+}

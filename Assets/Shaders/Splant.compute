@@ -11,7 +11,8 @@ RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
 RWStructuredBuffer<uint> cell_indices;
 RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
 float bond_range_sq;
-float bond_stiffness;
+float bond_linear_stiffness;
+float bond_bend_stiffness;
 float bucket_size;
 float delta_time;
 float neighbor_radius;
@@ -42,7 +43,7 @@ bool should_split(cell c, uint id, float time)
 {
     float r = random(id + (uint)(time * 1000));
     float agePenalty = exp(-c.age * 0.5); // Rapid dropoff
-    return r < 0.05 * agePenalty;
+    return r < 0.005 * agePenalty;
 }
 
 bool should_die(cell c, uint id, float time)
@@ -50,84 +51,6 @@ bool should_die(cell c, uint id, float time)
     float r = random(id + (uint)(time * 1000) + 12345); // decorrelate
     float age_factor = 1.0 - exp(-c.age * 0.5); // 0 → 1 as age increases
     return r < 0.045 * age_factor;
-}
-
-// TODO: compact bonds if we re add cell death.
-// TODO: Add two bonds arrays, one for cell a and one for cell b, then remove cell a and b from the bonds struct.
-// This will let us apply force on both sides of the cell. 
-// Also this should run after spatial hashing or at least move the whole grow kernel after hashing.
-void add_bonds(cell c, uint id)
-{
-    int3 base_bucket = floor(c.position / bucket_size);
-    
-    uint alive_count = cell_count[0];
-    
-    int num_bonds_generated = 0;
-    uint bond_start_id = id * max_bonds_per_cell;
-    
-    uint seed = wang_hash(id);
-    uint offset = seed % 27;
-    
-    for (uint k = 0; k < 27; k++)
-    {
-        int3 nb = base_bucket + bucket_offsets[(k + offset) % 27];
-        uint hash = fast_hash_coord(nb);
-        uint bucket = hash & (bucket_table_size - 1);
-
-        uint start = bucket_start[bucket];
-        uint end = bucket_end[bucket];
-                
-        if (start == 0xffffffff || start >= end) continue;
-
-        for (uint i = start; i < end; i++)
-        {
-            if (i >= alive_count) continue;
-                    
-            // Verify full hash
-            if (cell_full_hash[cell_indices[i]] != hash)
-                continue;
-                    
-            // Avoid self
-            uint other_id = cell_indices[i];
-            if (other_id == id) continue;
-
-            cell other = cells[other_id];
-                    
-            // Skip if other is dead
-            if (other.age < 0) continue;
-
-            float3 delta = c.position - other.position;
-            float dist_sq = dot(delta, delta);
-
-            if (dist_sq > bond_range_sq || dist_sq < 1e-6)
-                continue;
-            
-            float dist = sqrt(dist_sq);
-            bond b;
-            b.cell_a = id;
-            b.cell_b = other_id;
-            b.target_distance = dist;
-                    
-            bonds[bond_start_id + num_bonds_generated] = b;
-                    
-            num_bonds_generated++;
-            
-            if (num_bonds_generated >= max_bonds_per_cell)
-            {
-                return;
-            }
-        }
-    }
-    
-    bond invalid;
-    invalid.cell_a = 0xffffffff;
-    invalid.cell_b = 0xffffffff;
-    invalid.target_distance = 0;
-    
-    for (int i = num_bonds_generated; i < max_bonds_per_cell; i++)
-    {
-        bonds[bond_start_id + i] = invalid;
-    }
 }
 
 cell make_child(cell parent, uint id)
@@ -140,7 +63,7 @@ cell make_child(cell parent, uint id)
         random(id * 432457) - 0.5
     );
     child.position = parent.position + offset * 0.5;
-    
+    child.polarity = safe_normalize(offset); // TODO: should inherit parent's polarity + random noise
     return child;
 }
 
@@ -183,7 +106,6 @@ void grow(uint id : SV_DispatchThreadID)
         {
             cell child = make_child(c, id);
             cells[child_idx] = child;
-            add_bonds(child, child_idx);
         }
     }
 }
@@ -256,7 +178,7 @@ void remap_bonds(uint id : SV_DispatchThreadID)
         {
             b.cell_a = 0xffffffff;
             b.cell_b = 0xffffffff;
-            b.target_distance = 0;
+            b.rest_distance = 0;
         }
         else
         {
@@ -423,33 +345,138 @@ void apply_bond_forces(uint id : SV_DispatchThreadID)
     float3 force = float3(0, 0, 0);
     
     uint bond_start = id * max_bonds_per_cell;
-    uint bond_end = min(bond_start + max_bonds_per_cell, max_bonds);
+    uint bond_end   = min(bond_start + max_bonds_per_cell, max_bonds);
     
     for (uint i = bond_start; i < bond_end; i++)
     {
         bond b = bonds[i];
-        
-        if (b.cell_a == 0xffffffff) break; // Invalid bond, we're done
+        if (b.cell_a == 0xffffffff) break; // invalid bond
         
         cell other = cells[b.cell_b];
         if (other.age < 0) continue;
         
         float3 delta = other.position - c.position;
         float dist_sq = dot(delta, delta);
-
         if (dist_sq < 1e-6) continue;
 
         float inv_dist = rsqrt(dist_sq);
         float dist = dist_sq * inv_dist;
-        float3 dir = delta * inv_dist;
+        float3 dir = delta * inv_dist;   // current bond direction
 
-        float diff = dist - b.target_distance;
-        float force_mag = diff * bond_stiffness;
+        // Linear stiffness
+        float diff = dist - b.rest_distance;
+        force += dir * (diff * bond_linear_stiffness);
 
-        force += dir * force_mag;
+        // Rotational stiffness
+        // angular error axis (≈ sin(theta) * axis)
+        float3 axis = cross(dir, b.rest_dir);
+
+        // convert angular error → lateral force
+        float3 rot_force = cross(axis, dir);
+        
+        // TODO: make this a param
+        float angular_damp = 0.1;
+        rot_force -= angular_damp * axis;
+
+        force += rot_force * bond_bend_stiffness;
     }
     
     c.position += force * delta_time;
     c.position = clamp(c.position, min_pos, max_pos);
     cells[id] = c;
+}
+
+#pragma kernel init_bonds
+
+[numthreads(256, 1, 1)]
+void init_bonds(uint id : SV_DispatchThreadID)
+{
+    if (id >= max_bonds) return;
+    
+    bond invalid;
+    invalid.cell_a = 0xffffffff;
+    invalid.cell_b = 0xffffffff;
+    invalid.rest_distance = 0;
+    invalid.rest_dir = float3(0, 0, 0);
+    bonds[id] = invalid;
+}
+
+#pragma kernel add_bonds
+
+// assymetric bonds :(
+[numthreads(256, 1, 1)]
+void add_bonds(uint id : SV_DispatchThreadID)
+{
+    if (id >= cell_count[0]) return;
+    
+    cell c = cells[id];
+    
+    // Skip dead cells
+    if (c.age < 0) return;
+    
+    int3 base_bucket = floor(c.position / bucket_size);
+    
+    uint alive_count = cell_count[0];
+    
+    int num_bonds_generated = 0;
+    uint bond_start_id = id * max_bonds_per_cell;
+    
+    uint seed = wang_hash(id);
+    uint offset = seed % 27;
+    
+    for (uint k = 0; k < 27; k++)
+    {
+        int3 nb = base_bucket + bucket_offsets[(k + offset) % 27];
+        uint hash = fast_hash_coord(nb);
+        uint bucket = hash & (bucket_table_size - 1);
+
+        uint start = bucket_start[bucket];
+        uint end = bucket_end[bucket];
+                
+        if (start == 0xffffffff || start >= end) continue;
+
+        for (uint i = start; i < end; i++)
+        {
+            if (bonds[bond_start_id + num_bonds_generated].cell_a != 0xffffffff) continue;
+            if (i >= alive_count) continue;
+                    
+            // Verify full hash
+            if (cell_full_hash[cell_indices[i]] != hash)
+                continue;
+                    
+            // Avoid self
+            uint other_id = cell_indices[i];
+            if (other_id == id) continue;
+
+            cell other = cells[other_id];
+                    
+            // Skip if other is dead
+            if (other.age < 0) continue;
+
+            float3 delta = other.position - c.position;
+            float dist_sq = dot(delta, delta);
+
+            if (dist_sq > bond_range_sq || dist_sq < 1e-6)
+                continue;
+            
+            bond b;
+            b.cell_a = id;
+            b.cell_b = other_id;
+            float inv_dist = rsqrt(dist_sq);
+            b.rest_distance = dist_sq * inv_dist;
+            float3 dir = delta * inv_dist;
+            b.rest_dir = dir;
+                    
+            bonds[bond_start_id + num_bonds_generated] = b;
+                    
+            num_bonds_generated++;
+            
+            if (num_bonds_generated >= max_bonds_per_cell)
+            {
+                return;
+            }
+        }
+    }
+    
+    
 }

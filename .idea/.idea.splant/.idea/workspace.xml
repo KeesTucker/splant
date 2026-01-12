@@ -3,6 +3,14 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Cell.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Cell.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -56,20 +64,20 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "main",
-    "ignore.virus.scanning.warn.message": "true",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.keymap",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.keymap&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="Attach to Unity Editor.Attach to Unity Editor">
     <configuration name="Start Unity" type="RunUnityExe" factoryName="Unity Executable">
       <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\2023.1.22f1\Editor\Unity.exe" />
@@ -124,7 +132,8 @@
       <workItem from="1768100782625" duration="6545000" />
       <workItem from="1768110241288" duration="995000" />
       <workItem from="1768157476275" duration="2166000" />
-      <workItem from="1768198215115" duration="9293000" />
+      <workItem from="1768198215115" duration="9573000" />
+      <workItem from="1768243771179" duration="3109000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -214,7 +223,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768207119922</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="fix: some bonds fixes and a TODO for the rest of the fixes.">
+      <option name="closed" value="true" />
+      <created>1768207883785</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1768207883785</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -253,7 +270,8 @@
     <MESSAGE value="feat: moved away from ping pong cell growth buffers and am instead using a single buffer with atomic counts on new cells and compaction for dead cells." />
     <MESSAGE value="chore: removed render args" />
     <MESSAGE value="feat: Added buggy cell -&gt; cell bonds. Crashing sometimes. Should hold cells at a target distance." />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: Added buggy cell -&gt; cell bonds. Crashing sometimes. Should hold cells at a target distance." />
+    <MESSAGE value="fix: some bonds fixes and a TODO for the rest of the fixes." />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: some bonds fixes and a TODO for the rest of the fixes." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
