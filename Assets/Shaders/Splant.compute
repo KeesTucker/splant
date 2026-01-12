@@ -53,7 +53,9 @@ bool should_die(cell c, uint id, float time)
 }
 
 // TODO: compact bonds if we re add cell death.
-
+// TODO: Add two bonds arrays, one for cell a and one for cell b, then remove cell a and b from the bonds struct.
+// This will let us apply force on both sides of the cell. 
+// Also this should run after spatial hashing or at least move the whole grow kernel after hashing.
 void add_bonds(cell c, uint id)
 {
     int3 base_bucket = floor(c.position / bucket_size);
@@ -139,8 +141,6 @@ cell make_child(cell parent, uint id)
     );
     child.position = parent.position + offset * 0.5;
     
-    add_bonds(child, id);
-    
     return child;
 }
 
@@ -181,7 +181,9 @@ void grow(uint id : SV_DispatchThreadID)
         // counter. Resolved in finalize compact.
         if (child_idx < max_cells)
         {
-            cells[child_idx] = make_child(c, id);
+            cell child = make_child(c, id);
+            cells[child_idx] = child;
+            add_bonds(child, child_idx);
         }
     }
 }
@@ -355,7 +357,7 @@ void apply_collision_forces(uint id : SV_DispatchThreadID)
 
     uint alive_count = cell_count[0];
     
-    float3 accel;
+    float3 accel = float3(0, 0, 0);
     
     for (int z = -1; z <= 1; z++)
         for (int y = -1; y <= 1; y++)
