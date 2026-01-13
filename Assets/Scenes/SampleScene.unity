@@ -157,11 +157,11 @@ MonoBehaviour:
     m_Extent: {x: 5, y: 5, z: 5}
   maxCells: 100000
   compactEveryNFrames: 20
-  bucketSize: 0.3
+  bucketSize: 0.2
   bucketTableSize: 262144
-  neighborCollisionRadius: 0.15
-  repulsionStrength: 1
-  bondRange: 0.15
+  neighborCollisionRadius: 0.1334
+  repulsionStrength: 10
+  bondRange: 0.1334
   bondLinearStiffness: 1
   bondBendStiffness: 0.1
   maxBondsPerCell: 4

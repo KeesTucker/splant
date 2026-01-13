@@ -74,6 +74,73 @@ Shader "Unlit/Raymarch"
             StructuredBuffer<uint> cell_indices;
             StructuredBuffer<uint> cell_full_hash;
             StructuredBuffer<cell> cells;
+            StructuredBuffer<uint> cell_count;
+
+            // Metaball SDF with proper smoothing
+            float evaluate_metaballs(float3 p)
+            {
+                float density = 0.0;
+                
+                int3 bucket_coord = floor(p / bucket_size);
+                
+                // Check neighboring buckets
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            int3 check_coord = bucket_coord + int3(dx, dy, dz);
+                            uint hash = fast_hash_coord(check_coord);
+                            uint bucket = hash & (bucket_table_size - 1);
+                            uint start = bucket_start[bucket];
+                            uint end = bucket_end[bucket];
+                            
+                            if (start != 0xffffffff && start < end)
+                            {
+                                for (uint i = start; i < end; i++)
+                                {
+                                    uint idx = cell_indices[i];
+                                    if (cell_full_hash[idx] == hash && cells[idx].age >= 0)
+                                    {
+                                        float3 cell_pos = cells[idx].position;
+                                        float3 diff = p - cell_pos;
+                                        float dist_sq = dot(diff, diff);
+                                        
+                                        // Smooth kernel with controlled falloff
+                                        // TODO: make neighbor_radius independent of physics radius
+                                        float r = neighbor_radius * 0.8;
+                                        float r_sq = r * r;
+                                        
+                                        if (dist_sq < r_sq)
+                                        {
+                                            float ratio = dist_sq / r_sq;
+                                            // Smooth polynomial kernel
+                                            float influence = 1.0 - ratio * ratio * (3.0 - 2.0 * ratio);
+                                            density += influence;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Threshold for surface (tune this)
+                return 0.5 - density;
+            }
+
+            // Tetrahedral normal for better quality
+            float3 calc_normal(float3 p, float eps)
+            {
+                float2 e = float2(1, -1) * eps;
+                return normalize(
+                    e.xyy * evaluate_metaballs(p + e.xyy) +
+                    e.yyx * evaluate_metaballs(p + e.yyx) +
+                    e.yxy * evaluate_metaballs(p + e.yxy) +
+                    e.xxx * evaluate_metaballs(p + e.xxx)
+                );
+            }
 
             float4 frag(VSOut i) : SV_Target
             {
@@ -91,95 +158,68 @@ Shader "Unlit/Raymarch"
                 if (!ray_aabb(ro, rd, bounds_min, bounds_max, t_enter, t_exit))
                     return float4(0,0,0,1);
 
-                float t0 = max(t_enter, 0.0);
-                float t1 = t_exit;
+                float t = max(t_enter, 0.0);
+                float t_max = t_exit;
 
-                // --- DDA SETUP ---
-                float3 rayOrigin = ro + rd * t0;
-                float3 rayDir    = rd;
-
-                float3 rayDirSafe = max(abs(rayDir), 1e-6) * sign(rayDir);
-                int3 step = sign(rayDirSafe);
-
-                int3 cell = floor((rayOrigin - 1e-6 * step) / bucket_size);
-
-                float3 nextBoundary = float3(
-                    (step.x > 0 ? (cell.x + 1) : cell.x) * bucket_size,
-                    (step.y > 0 ? (cell.y + 1) : cell.y) * bucket_size,
-                    (step.z > 0 ? (cell.z + 1) : cell.z) * bucket_size
-                );
-
-                float3 tMax   = (nextBoundary - rayOrigin) / rayDirSafe;
-                float3 tDelta = abs(bucket_size / rayDirSafe);
-
-                float t = t0;
+                // Fixed step size sphere tracing to avoid artifacts
+                float min_step = neighbor_radius * 0.15;
+                float max_step = neighbor_radius * 0.5;
                 
-                // --- DDA LOOP ---
-                int prev_axis = -1; // Track which axis we crossed to enter current bucket
-
                 [loop]
-                for (int iter = 0; iter < 64 && t < t1; iter++)
+                for (int iter = 0; iter < 128; iter++)
                 {
-                    // First, check density at the current bucket before moving
-                    uint hash = fast_hash_coord(cell);
-                    uint bucket = hash & (bucket_table_size - 1);
-                    uint start = bucket_start[bucket];
-                    uint end   = bucket_end[bucket];
+                    if (t > t_max) break;
                     
-                    float bucket_density = 0;
-                    if (start != 0xffffffff && start < end)
-                    {
-                        for (uint i = start; i < end; i++)
-                        {
-                            uint idx = cell_indices[i];
-                            if (cell_full_hash[idx] == hash && cells[idx].age >= 0)
-                            {
-                                bucket_density++;
-                            }
-                        }
-                    }
+                    float3 p = ro + rd * t;
+                    float sdf = evaluate_metaballs(p);
                     
-                    // If this bucket has density, render it as a solid cube
-                    if (bucket_density > 1.0)
+                    // Surface hit - refine with binary search
+                    if (sdf < 0.0)
                     {
-                        // Calculate normal based on which axis we crossed to enter this bucket
-                        float3 normal = float3(0, 0, 0);
-                        if (prev_axis == 0) normal.x = -step.x;
-                        else if (prev_axis == 1) normal.y = -step.y;
-                        else if (prev_axis == 2) normal.z = -step.z;
-                        else normal = float3(0, 1, 0); // fallback for first bucket
+                        // Back up slightly
+                        float t_near = t - max_step;
+                        float t_far = t;
                         
-                        // Simple directional lighting
+                        // Binary search for precise surface location
+                        for (int j = 0; j < 4; j++)
+                        {
+                            float t_mid = (t_near + t_far) * 0.5;
+                            float3 p_mid = ro + rd * t_mid;
+                            float sdf_mid = evaluate_metaballs(p_mid);
+                            
+                            if (sdf_mid < 0.0)
+                                t_far = t_mid;
+                            else
+                                t_near = t_mid;
+                        }
+                        
+                        p = ro + rd * ((t_near + t_far) * 0.5);
+                        
+                        // Calculate normal with adaptive epsilon
+                        float eps = neighbor_radius * 0.05;
+                        float3 normal = calc_normal(p, eps);
+                        
+                        // Improved lighting
                         float3 light_dir = normalize(float3(0.5, 1, 0.3));
                         float diffuse = max(0.0, dot(normal, light_dir));
-                        float ambient = 0.2;
                         
-                        float3 color = float3(0.8, 0.8, 0.9) * (ambient + diffuse * 0.8);
+                        // Soft ambient occlusion approximation (buggy)
+                        //float ao = 1.0 - saturate(abs(sdf) * 2.0);
+                        
+                        float ambient = 0.3;
+                        
+                        // Fresnel rim light
+                        float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), 3.0);
+                        
+                        float3 base_color = float3(0.75, 0.82, 0.88);
+                        float3 color = base_color * (ambient /** ao*/ + diffuse * 0.7) + fresnel * 0.15;
+                        
                         return float4(color, 1);
                     }
                     
-                    // Move to next bucket and track which axis
-                    if (tMax.x < tMax.y && tMax.x < tMax.z)
-                    {
-                        t = tMax.x;
-                        tMax.x += tDelta.x;
-                        cell.x += step.x;
-                        prev_axis = 0;
-                    }
-                    else if (tMax.y < tMax.z)
-                    {
-                        t = tMax.y;
-                        tMax.y += tDelta.y;
-                        cell.y += step.y;
-                        prev_axis = 1;
-                    }
-                    else
-                    {
-                        t = tMax.z;
-                        tMax.z += tDelta.z;
-                        cell.z += step.z;
-                        prev_axis = 2;
-                    }
+                    // Adaptive step with minimum and maximum bounds
+                    float step = clamp(abs(sdf) * 0.8, min_step, max_step);
+                    t += step;
                 }
 
                 return float4(0,0,0,1);
