@@ -171,6 +171,7 @@ MonoBehaviour:
   surfaceThreshold: 0.5
   ambientLight: 0.1
   fresnelPow: 3
+  fresnelStrength: 0.15
   baseColour: {r: 0, g: 0.6313726, b: 0.03529412, a: 1}
   sssColor: {r: 0.95, g: 0.6, b: 0.5, a: 1}
   sssStrength: 0.6

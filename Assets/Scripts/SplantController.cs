@@ -21,6 +21,8 @@ public class SplantController : MonoBehaviour
     private int _remapBondsKernel;
     private int _writeCompactedKernel;
     
+    private static readonly int AmbientLightID = Shader.PropertyToID("ambient_light");
+    private static readonly int BaseColorID = Shader.PropertyToID("base_color");
     private static readonly int BondBendStiffnessID = Shader.PropertyToID("bond_bend_stiffness");
     private static readonly int BondLinearStiffnessID = Shader.PropertyToID("bond_linear_stiffness");
     private static readonly int BondRangeSqID = Shader.PropertyToID("bond_range_sq");
@@ -43,6 +45,8 @@ public class SplantController : MonoBehaviour
     private static readonly int CellsTempID = Shader.PropertyToID("cells_temp");
     private static readonly int CompactCountID = Shader.PropertyToID("compact_count");
     private static readonly int DeltaTimeID = Shader.PropertyToID("delta_time");
+    private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
+    private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
     private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
     private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
@@ -61,9 +65,6 @@ public class SplantController : MonoBehaviour
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
     private static readonly int SurfaceThresholdID = Shader.PropertyToID("surface_threshold");
     private static readonly int TimeID = Shader.PropertyToID("time");
-    private static readonly int BaseColorID = Shader.PropertyToID("base_color");
-    private static readonly int AmbientLightID = Shader.PropertyToID("ambient_light");
-    private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
 
     [SerializeField] private ComputeShader compute;
     [SerializeField] private ComputeShader sortCompute;
@@ -103,6 +104,7 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float surfaceThreshold = 0.5f;
     [SerializeField] private float ambientLight = 0.3f;
     [SerializeField] private float fresnelPow = 3f;
+    [SerializeField] private float fresnelStrength = 0.15f;
     [SerializeField] private Color baseColour = new(0.2f, 0.9f, 0.5f, 1f);
 
     [Header("SSS")] 
@@ -324,23 +326,24 @@ public class SplantController : MonoBehaviour
         compute.SetVector(MaxPosID, bounds.max);
         compute.SetVector(MinPosID, bounds.min);
         
+        raymarchMaterial.SetFloat(AmbientLightID,  ambientLight);
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
         raymarchMaterial.SetFloat(CellRadiusSqID, cellRadius * cellRadius);
+        raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
+        raymarchMaterial.SetFloat(FresnelStrengthID, fresnelStrength);
         raymarchMaterial.SetFloat(MaxStepSizeID, maxStepSize);
         raymarchMaterial.SetFloat(MinStepSizeID, minStepSize);
         raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
+        raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
+        raymarchMaterial.SetFloat(SSSMaxDistanceID, sssMaxDistance);
+        raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
         raymarchMaterial.SetFloat(SurfaceThresholdID, surfaceThreshold);
         raymarchMaterial.SetInt(BucketTableSizeID, bucketTableSize);
+        raymarchMaterial.SetVector(BaseColorID, baseColour);
         raymarchMaterial.SetVector(BoundsMaxId, bounds.max);
         raymarchMaterial.SetVector(BoundsMinId, bounds.min);
         raymarchMaterial.SetVector(SSSColorID, sssColor);
-        raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
-        raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
-        raymarchMaterial.SetFloat(SSSMaxDistanceID, sssMaxDistance);
-        raymarchMaterial.SetVector(BaseColorID, baseColour);
-        raymarchMaterial.SetFloat(AmbientLightID,  ambientLight);
-        raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
     }
     
     private void SetComputeBuffers()

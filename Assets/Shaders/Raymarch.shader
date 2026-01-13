@@ -27,6 +27,7 @@ Shader "Unlit/Raymarch"
             float cell_radius;
             float cell_radius_sq;
             float fresnel_pow;
+            float fresnel_strength;
             float max_step_size;
             float min_step_size;
             float sss_falloff;
@@ -236,21 +237,7 @@ Shader "Unlit/Raymarch"
                         // Fresnel rim light
                         float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), fresnel_pow);
                         
-                        // SSS
-                        /*float sss_step = cell_radius * 0.12;
-                        float sss_max = cell_radius * sss_max_distance;
-                        float thickness = estimate_thickness(p, light_dir, sss_step, sss_max);
-                        float transmittance = 1.0 - exp(-thickness * sss_falloff);
-                        float wrap = saturate((ndotl + 0.4) / 1.4);
-                        float backscatter = pow(saturate(dot(-rd, light_dir)), 2.0);
-                        float transmission = saturate(-ndotl);
-                        float view_through = saturate(dot(-rd, -light_dir));
-                        float sss = sss_strength * transmittance
-                            * (0.6 + 0.4 * backscatter)
-                            * (wrap + transmission * (0.35 + 0.65 * view_through));*/
-                        
-                        float3 color = base_color * (ambient_light /** ao*/ + diffuse * 0.7) + fresnel * 0.15;
-                        //color += sss_color * sss;
+                        float3 color = base_color.rgb * (ambient_light + diffuse * (1 - ambient_light)) + fresnel * fresnel_strength;
                         return float4(color, 1);
                     }
                     
