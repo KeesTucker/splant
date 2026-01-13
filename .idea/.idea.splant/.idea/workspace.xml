@@ -5,7 +5,6 @@
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -39,7 +38,10 @@
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/SimpleCameraInput.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/SplantController.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Cell.hlsl" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Splant.compute" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/asdf.b0nes.gpu_sorting@09a6081d96/Runtime/DeviceRadixSort.cs" root0="SKIP_HIGHLIGHTING" />
@@ -131,7 +133,8 @@
       <workItem from="1768198215115" duration="9573000" />
       <workItem from="1768243771179" duration="3109000" />
       <workItem from="1768288286037" duration="4582000" />
-      <workItem from="1768327767179" duration="3201000" />
+      <workItem from="1768327767179" duration="4085000" />
+      <workItem from="1768332302957" duration="297000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -245,7 +248,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768328036943</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="feat: paramatized much of the metaballs params and tried re implementing sss with no luck.">
+      <option name="closed" value="true" />
+      <created>1768331018629</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1768331018629</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -288,7 +299,8 @@
     <MESSAGE value="feat: optimized raymarch shader" />
     <MESSAGE value="feat: changed raymarcher to cube renderer for simplicity and a good base to work from" />
     <MESSAGE value="chore: remove broken sss" />
-    <option name="LAST_COMMIT_MESSAGE" value="chore: remove broken sss" />
+    <MESSAGE value="feat: paramatized much of the metaballs params and tried re implementing sss with no luck." />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: paramatized much of the metaballs params and tried re implementing sss with no luck." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

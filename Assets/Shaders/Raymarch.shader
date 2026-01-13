@@ -22,21 +22,24 @@ Shader "Unlit/Raymarch"
                 float2 uv  : TEXCOORD0;
             };
 
+            float ambient_light;
             float bucket_size;
             float cell_radius;
             float cell_radius_sq;
+            float fresnel_pow;
             float max_step_size;
             float min_step_size;
+            float sss_falloff;
+            float sss_max_distance;
+            float sss_strength;
             float surface_threshold;
             float3 bounds_max;
             float3 bounds_min;
             float3 camera_pos;
+            float3 sss_color;
+            float4 base_color;
             float4x4 inv_view_proj;
             uint bucket_table_size;
-            float3 sss_color;
-            float sss_strength;
-            float sss_falloff;
-            float sss_max_distance;
 
 
             StructuredBuffer<cell> cells;
@@ -230,13 +233,11 @@ Shader "Unlit/Raymarch"
                         // Soft ambient occlusion approximation (buggy)
                         //float ao = 1.0 - saturate(abs(sdf) * 2.0);
                         
-                        float ambient = 0.3;
-                        
                         // Fresnel rim light
-                        float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), 3.0);
+                        float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), fresnel_pow);
                         
                         // SSS
-                        float sss_step = cell_radius * 0.12;
+                        /*float sss_step = cell_radius * 0.12;
                         float sss_max = cell_radius * sss_max_distance;
                         float thickness = estimate_thickness(p, light_dir, sss_step, sss_max);
                         float transmittance = 1.0 - exp(-thickness * sss_falloff);
@@ -246,12 +247,11 @@ Shader "Unlit/Raymarch"
                         float view_through = saturate(dot(-rd, -light_dir));
                         float sss = sss_strength * transmittance
                             * (0.6 + 0.4 * backscatter)
-                            * (wrap + transmission * (0.35 + 0.65 * view_through));
+                            * (wrap + transmission * (0.35 + 0.65 * view_through));*/
                         
-                        float3 base_color = float3(0.75, 0.82, 0.88);
-                        float3 color = base_color * (ambient /** ao*/ + diffuse * 0.7) + fresnel * 0.15;
-                        color += sss_color * sss;
-                        return float4(sss_color * sss, 1);
+                        float3 color = base_color * (ambient_light /** ao*/ + diffuse * 0.7) + fresnel * 0.15;
+                        //color += sss_color * sss;
+                        return float4(color, 1);
                     }
                     
                     // Adaptive step with minimum and maximum bounds

@@ -155,7 +155,7 @@ MonoBehaviour:
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 5, y: 5, z: 5}
-  maxCells: 500
+  maxCells: 100000
   compactEveryNFrames: 20
   bucketSize: 0.2
   bucketTableSize: 262144
@@ -169,6 +169,9 @@ MonoBehaviour:
   minStepSize: 0.02001
   maxStepSize: 0.0667
   surfaceThreshold: 0.5
+  ambientLight: 0.1
+  fresnelPow: 3
+  baseColour: {r: 0, g: 0.6313726, b: 0.03529412, a: 1}
   sssColor: {r: 0.95, g: 0.6, b: 0.5, a: 1}
   sssStrength: 0.6
   sssFalloff: 1.5

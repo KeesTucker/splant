@@ -61,6 +61,9 @@ public class SplantController : MonoBehaviour
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
     private static readonly int SurfaceThresholdID = Shader.PropertyToID("surface_threshold");
     private static readonly int TimeID = Shader.PropertyToID("time");
+    private static readonly int BaseColorID = Shader.PropertyToID("base_color");
+    private static readonly int AmbientLightID = Shader.PropertyToID("ambient_light");
+    private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
 
     [SerializeField] private ComputeShader compute;
     [SerializeField] private ComputeShader sortCompute;
@@ -98,6 +101,9 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float maxStepSize = 0.0667f;
     [Range(0, 1)]
     [SerializeField] private float surfaceThreshold = 0.5f;
+    [SerializeField] private float ambientLight = 0.3f;
+    [SerializeField] private float fresnelPow = 3f;
+    [SerializeField] private Color baseColour = new(0.2f, 0.9f, 0.5f, 1f);
 
     [Header("SSS")] 
     [SerializeField] private Color sssColor = new(0.95f, 0.6f, 0.5f, 1f);
@@ -107,7 +113,6 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float sssFalloff = 1.5f;
     [Range(0.1f, 4f)]
     [SerializeField] private float sssMaxDistance = 1.2f;
-    
     
     private ComputeBuffer _bonds;
     private ComputeBuffer _bucketEnd;
@@ -333,6 +338,9 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
         raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
         raymarchMaterial.SetFloat(SSSMaxDistanceID, sssMaxDistance);
+        raymarchMaterial.SetVector(BaseColorID, baseColour);
+        raymarchMaterial.SetFloat(AmbientLightID,  ambientLight);
+        raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
     }
     
     private void SetComputeBuffers()
