@@ -16,20 +16,39 @@ Shader "Unlit/Raymarch"
             #include "Cell.hlsl"
             #include "Helpers.hlsl"
 
-            struct VSOut
+            struct vs_out
             {
                 float4 pos : SV_POSITION;
                 float2 uv  : TEXCOORD0;
             };
 
+            float bucket_size;
+            float cell_radius;
+            float cell_radius_sq;
+            float max_step_size;
+            float min_step_size;
+            float surface_threshold;
+            float3 bounds_max;
+            float3 bounds_min;
             float3 camera_pos;
             float4x4 inv_view_proj;
-            float3 bounds_min;
-            float3 bounds_max;
+            uint bucket_table_size;
+            float3 sss_color;
+            float sss_strength;
+            float sss_falloff;
+            float sss_max_distance;
 
-            VSOut vert(uint id : SV_VertexID)
+
+            StructuredBuffer<cell> cells;
+            StructuredBuffer<uint> bucket_end;
+            StructuredBuffer<uint> bucket_start;
+            StructuredBuffer<uint> cell_count;
+            StructuredBuffer<uint> cell_full_hash;
+            StructuredBuffer<uint> cell_indices;
+
+            vs_out vert(uint id : SV_VertexID)
             {
-                VSOut o;
+                vs_out o;
                 float2 verts[3] = {
                     float2(-1, -1),
                     float2(-1,  3),
@@ -50,7 +69,7 @@ Shader "Unlit/Raymarch"
                 out float t_exit
             )
             {
-                float3 inv_rd = 1.0 / max(abs(rd), 1e-6) * sign(rd);
+                float3 inv_rd = 1.0 / rd;
 
                 float3 t0 = (bmin - ro) * inv_rd;
                 float3 t1 = (bmax - ro) * inv_rd;
@@ -64,26 +83,14 @@ Shader "Unlit/Raymarch"
                 return t_exit >= max(t_enter, 0.0);
             }
 
-            float bucket_size;
-            uint bucket_table_size;
-            float neighbor_radius;
-            float neighbor_radius_sq;
-
-            StructuredBuffer<uint> bucket_start;
-            StructuredBuffer<uint> bucket_end;
-            StructuredBuffer<uint> cell_indices;
-            StructuredBuffer<uint> cell_full_hash;
-            StructuredBuffer<cell> cells;
-            StructuredBuffer<uint> cell_count;
-
-            // Metaball SDF with proper smoothing
+            // metaball SDF with proper smoothing
             float evaluate_metaballs(float3 p)
             {
                 float density = 0.0;
                 
                 int3 bucket_coord = floor(p / bucket_size);
                 
-                // Check neighboring buckets
+                // check neighboring buckets
                 for (int dx = -1; dx <= 1; dx++)
                 {
                     for (int dy = -1; dy <= 1; dy++)
@@ -107,17 +114,11 @@ Shader "Unlit/Raymarch"
                                         float3 diff = p - cell_pos;
                                         float dist_sq = dot(diff, diff);
                                         
-                                        // Smooth kernel with controlled falloff
-                                        // TODO: make neighbor_radius independent of physics radius
-                                        // TODO: precompute this holy shit
-                                        float r = neighbor_radius * 0.8;
-                                        float r_sq = r * r;
-                                        
-                                        if (dist_sq < r_sq)
+                                        if (dist_sq < cell_radius_sq)
                                         {
-                                            float ratio = dist_sq / r_sq;
-                                            // Smooth polynomial kernel
-                                            float influence = 1.0 - ratio * ratio * (3.0 - 2.0 * ratio);
+                                            float ratio = dist_sq / cell_radius_sq;
+                                            // inverted smooth polynomial kernel
+                                            float influence = 1.0 - smooth_step(ratio);
                                             density += influence;
                                         }
                                     }
@@ -127,11 +128,11 @@ Shader "Unlit/Raymarch"
                     }
                 }
                 
-                // Threshold for surface (tune this)
-                return 0.5 - density;
+                // threshold for surface (tune this)
+                return surface_threshold - density;
             }
 
-            // Tetrahedral normal for better quality
+            // tetrahedral normal for better quality
             float3 calc_normal(float3 p, float eps)
             {
                 float2 e = float2(1, -1) * eps;
@@ -143,12 +144,37 @@ Shader "Unlit/Raymarch"
                 );
             }
             
-            float4 frag(VSOut i) : SV_Target
+            float estimate_thickness(float3 p, float3 light_dir, float step_size, float max_distance)
             {
-                float2 ndc = i.uv * 2.0 - 1.0;
-                ndc.y *= -1.0;
+                float thickness = 0.0;
+                float3 sample_pos = p - light_dir * step_size;
 
-                float4 clip  = float4(ndc, 0, 1);
+                [unroll]
+                for (int k = 0; k < 8; k++)
+                {
+                    if (thickness >= max_distance)
+                        break;
+
+                    float sdf = evaluate_metaballs(sample_pos);
+                    if (sdf > 0.0)
+                        break;
+
+                    thickness += step_size;
+                    sample_pos -= light_dir * step_size;
+                }
+
+                return thickness;
+            }
+            
+            float4 frag(vs_out i) : SV_Target
+            {
+                // normalized device coords, -1 -> 1 across the screen on x & y
+                float2 ndc = i.uv * 2.0 - 1.0;
+                // flip so -1 at bottom of screen and 1 at top
+                ndc.y *= -1.0;
+                
+                float4 clip = float4(ndc, 1, 1);
+                
                 float4 world = mul(inv_view_proj, clip);
                 world.xyz /= world.w;
 
@@ -161,10 +187,6 @@ Shader "Unlit/Raymarch"
 
                 float t = max(t_enter, 0.0);
                 float t_max = t_exit;
-
-                // Fixed step size sphere tracing to avoid artifacts
-                float min_step = neighbor_radius * 0.15;
-                float max_step = neighbor_radius * 0.5;
                 
                 [loop]
                 for (int iter = 0; iter < 128; iter++)
@@ -178,7 +200,7 @@ Shader "Unlit/Raymarch"
                     if (sdf < 0.0)
                     {
                         // Back up slightly
-                        float t_near = t - max_step;
+                        float t_near = t - max_step_size;
                         float t_far = t;
                         
                         // Binary search for precise surface location
@@ -197,12 +219,13 @@ Shader "Unlit/Raymarch"
                         p = ro + rd * ((t_near + t_far) * 0.5);
                         
                         // Calculate normal with adaptive epsilon
-                        float eps = neighbor_radius * 0.05;
+                        float eps = cell_radius * 0.05;
                         float3 normal = calc_normal(p, eps);
                         
                         // Improved lighting
                         float3 light_dir = normalize(float3(0.5, 1, 0.3));
-                        float diffuse = max(0.0, dot(normal, light_dir));
+                        float ndotl = dot(normal, light_dir);
+                        float diffuse = max(0.0, ndotl);
                         
                         // Soft ambient occlusion approximation (buggy)
                         //float ao = 1.0 - saturate(abs(sdf) * 2.0);
@@ -212,14 +235,27 @@ Shader "Unlit/Raymarch"
                         // Fresnel rim light
                         float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), 3.0);
                         
+                        // SSS
+                        float sss_step = cell_radius * 0.12;
+                        float sss_max = cell_radius * sss_max_distance;
+                        float thickness = estimate_thickness(p, light_dir, sss_step, sss_max);
+                        float transmittance = 1.0 - exp(-thickness * sss_falloff);
+                        float wrap = saturate((ndotl + 0.4) / 1.4);
+                        float backscatter = pow(saturate(dot(-rd, light_dir)), 2.0);
+                        float transmission = saturate(-ndotl);
+                        float view_through = saturate(dot(-rd, -light_dir));
+                        float sss = sss_strength * transmittance
+                            * (0.6 + 0.4 * backscatter)
+                            * (wrap + transmission * (0.35 + 0.65 * view_through));
+                        
                         float3 base_color = float3(0.75, 0.82, 0.88);
                         float3 color = base_color * (ambient /** ao*/ + diffuse * 0.7) + fresnel * 0.15;
-                        
-                        return float4(color, 1);
+                        color += sss_color * sss;
+                        return float4(sss_color * sss, 1);
                     }
                     
                     // Adaptive step with minimum and maximum bounds
-                    float step = clamp(abs(sdf) * 0.8, min_step, max_step);
+                    float step = clamp(abs(sdf) * 0.8, min_step_size, max_step_size);
                     t += step;
                 }
 

@@ -47,3 +47,9 @@ float3 safe_normalize(float3 v)
         return float3(0, 1, 0); // probably shouldn't default to up? Idk?
     return v * rsqrt(len_sq);
 }
+
+float smooth_step(float t)
+{
+    // Smooth polynomial kernel (smoothstep(t) = 3t² - 2t³)
+    return t * t * (3.0 - 2.0 * t);
+}

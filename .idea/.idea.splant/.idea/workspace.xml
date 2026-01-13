@@ -4,6 +4,8 @@
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -14,7 +16,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="866f834bb381db19d3b056d198c1a49fff233a0d" />
+        <entry key="$PROJECT_DIR$" value="dc383e49875faba96af298b725d7f73eac5bd3f6" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -37,6 +39,7 @@
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/SimpleCameraInput.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/SplantController.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Splant.compute" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/asdf.b0nes.gpu_sorting@09a6081d96/Runtime/DeviceRadixSort.cs" root0="SKIP_HIGHLIGHTING" />
@@ -128,6 +131,7 @@
       <workItem from="1768198215115" duration="9573000" />
       <workItem from="1768243771179" duration="3109000" />
       <workItem from="1768288286037" duration="4582000" />
+      <workItem from="1768327767179" duration="3201000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -233,7 +237,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768290915026</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="chore: remove broken sss">
+      <option name="closed" value="true" />
+      <created>1768328036943</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1768328036943</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -275,7 +287,8 @@
     <MESSAGE value="fix: some bonds fixes and a TODO for the rest of the fixes." />
     <MESSAGE value="feat: optimized raymarch shader" />
     <MESSAGE value="feat: changed raymarcher to cube renderer for simplicity and a good base to work from" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: changed raymarcher to cube renderer for simplicity and a good base to work from" />
+    <MESSAGE value="chore: remove broken sss" />
+    <option name="LAST_COMMIT_MESSAGE" value="chore: remove broken sss" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

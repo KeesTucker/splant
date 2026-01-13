@@ -155,7 +155,7 @@ MonoBehaviour:
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 5, y: 5, z: 5}
-  maxCells: 100000
+  maxCells: 500
   compactEveryNFrames: 20
   bucketSize: 0.2
   bucketTableSize: 262144
@@ -165,6 +165,14 @@ MonoBehaviour:
   bondLinearStiffness: 1
   bondBendStiffness: 0.1
   maxBondsPerCell: 4
+  cellRadius: 0.1334
+  minStepSize: 0.02001
+  maxStepSize: 0.0667
+  surfaceThreshold: 0.5
+  sssColor: {r: 0.95, g: 0.6, b: 0.5, a: 1}
+  sssStrength: 0.6
+  sssFalloff: 1.5
+  sssMaxDistance: 1.2
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0
