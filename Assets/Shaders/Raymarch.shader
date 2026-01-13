@@ -109,6 +109,7 @@ Shader "Unlit/Raymarch"
                                         
                                         // Smooth kernel with controlled falloff
                                         // TODO: make neighbor_radius independent of physics radius
+                                        // TODO: precompute this holy shit
                                         float r = neighbor_radius * 0.8;
                                         float r_sq = r * r;
                                         
@@ -141,7 +142,7 @@ Shader "Unlit/Raymarch"
                     e.xxx * evaluate_metaballs(p + e.xxx)
                 );
             }
-
+            
             float4 frag(VSOut i) : SV_Target
             {
                 float2 ndc = i.uv * 2.0 - 1.0;
