@@ -249,11 +249,11 @@ public class SplantController : MonoBehaviour
         compute.DispatchIndirect(_buildBucketKernel, _cellComputeArgs);
         
         // Bonds
-        compute.DispatchIndirect(_addBondsKernel, _cellComputeArgs);
+        //compute.DispatchIndirect(_addBondsKernel, _cellComputeArgs);
         
         // Physics
         compute.DispatchIndirect(_applyCollisionForcesKernel, _cellComputeArgs);
-        compute.DispatchIndirect(_applyBondForcesKernel, _cellComputeArgs);
+        //compute.DispatchIndirect(_applyBondForcesKernel, _cellComputeArgs);
 
         // Rendering
         var view = _mainCamera.worldToCameraMatrix;

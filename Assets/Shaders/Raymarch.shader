@@ -75,68 +75,6 @@ Shader "Unlit/Raymarch"
             StructuredBuffer<uint> cell_full_hash;
             StructuredBuffer<cell> cells;
 
-            float sample_density(float3 p)
-            {
-                int3 base_cell = floor(p / bucket_size);
-                float d = 0;
-
-                for (int z = -1; z <= 1; z++)
-                for (int y = -1; y <= 1; y++)
-                for (int x = -1; x <= 1; x++)
-                {
-                    int3 cellc = base_cell + int3(x, y, z);
-                    uint hash = fast_hash_coord(cellc);
-                    uint bucket = hash & (bucket_table_size - 1);
-
-                    uint start = bucket_start[bucket];
-                    uint end   = bucket_end[bucket];
-
-                    if (start == 0xffffffff || start >= end)
-                        continue;
-                    
-                    // Cheap blobby distance checks
-                    float3 bucket_center = (float3(cellc) + 0.5) * bucket_size;
-                    float3 delta = p - bucket_center;
-                    float dist = length(delta);
-                    float falloff = 1.0 - saturate(dist / (bucket_size * 1.732)); // 1.732 ≈ sqrt(3), diagonal
-                    
-                    
-                    for (uint i = start; i < end; i++)
-                    {
-                        uint idx = cell_indices[i];
-                        // Invert hash check to visualize hash contention
-                        if (cell_full_hash[idx] != hash || cells[idx].age < 0)
-                            continue;
-                        
-                        // Expensive per cell distance checks
-                        /*float3 delta = p - cells[idx].position;
-                        float r2 = dot(delta, delta);
-                        
-                        if (r2 < neighbor_radius_sq)
-                        {
-                            float t = r2 / neighbor_radius_sq;
-                            float w = (1.0 - t) * (1.0 - t);  // quadratic falloff
-                            d += w;
-                        }*/
-                        
-                        d += falloff;
-                    }
-                }
-
-                return d;
-            }
-
-            float3 density_gradient(float3 p)
-            {
-                float eps = max(bucket_size * 0.25, neighbor_radius * 0.5);
-
-                return float3(
-                    sample_density(p + float3(eps, 0, 0)) - sample_density(p - float3(eps, 0, 0)),
-                    sample_density(p + float3(0, eps, 0)) - sample_density(p - float3(0, eps, 0)),
-                    sample_density(p + float3(0, 0, eps)) - sample_density(p - float3(0, 0, eps))
-                );
-            }
-
             float4 frag(VSOut i) : SV_Target
             {
                 float2 ndc = i.uv * 2.0 - 1.0;
@@ -175,59 +113,73 @@ Shader "Unlit/Raymarch"
                 float3 tDelta = abs(bucket_size / rayDirSafe);
 
                 float t = t0;
-                float density = 0;
-
+                
                 // --- DDA LOOP ---
+                int prev_axis = -1; // Track which axis we crossed to enter current bucket
+
                 [loop]
                 for (int iter = 0; iter < 64 && t < t1; iter++)
                 {
-                    float t_next;
-                    int axis;
-
+                    // First, check density at the current bucket before moving
+                    uint hash = fast_hash_coord(cell);
+                    uint bucket = hash & (bucket_table_size - 1);
+                    uint start = bucket_start[bucket];
+                    uint end   = bucket_end[bucket];
+                    
+                    float bucket_density = 0;
+                    if (start != 0xffffffff && start < end)
+                    {
+                        for (uint i = start; i < end; i++)
+                        {
+                            uint idx = cell_indices[i];
+                            if (cell_full_hash[idx] == hash && cells[idx].age >= 0)
+                            {
+                                bucket_density++;
+                            }
+                        }
+                    }
+                    
+                    // If this bucket has density, render it as a solid cube
+                    if (bucket_density > 1.0)
+                    {
+                        // Calculate normal based on which axis we crossed to enter this bucket
+                        float3 normal = float3(0, 0, 0);
+                        if (prev_axis == 0) normal.x = -step.x;
+                        else if (prev_axis == 1) normal.y = -step.y;
+                        else if (prev_axis == 2) normal.z = -step.z;
+                        else normal = float3(0, 1, 0); // fallback for first bucket
+                        
+                        // Simple directional lighting
+                        float3 light_dir = normalize(float3(0.5, 1, 0.3));
+                        float diffuse = max(0.0, dot(normal, light_dir));
+                        float ambient = 0.2;
+                        
+                        float3 color = float3(0.8, 0.8, 0.9) * (ambient + diffuse * 0.8);
+                        return float4(color, 1);
+                    }
+                    
+                    // Move to next bucket and track which axis
                     if (tMax.x < tMax.y && tMax.x < tMax.z)
                     {
-                        t_next = tMax.x;
+                        t = tMax.x;
                         tMax.x += tDelta.x;
                         cell.x += step.x;
-                        axis = 0;
+                        prev_axis = 0;
                     }
                     else if (tMax.y < tMax.z)
                     {
-                        t_next = tMax.y;
+                        t = tMax.y;
                         tMax.y += tDelta.y;
                         cell.y += step.y;
-                        axis = 1;
+                        prev_axis = 1;
                     }
                     else
                     {
-                        t_next = tMax.z;
+                        t = tMax.z;
                         tMax.z += tDelta.z;
                         cell.z += step.z;
-                        axis = 2;
+                        prev_axis = 2;
                     }
-
-                    float t_mid = 0.5 * (t + t_next);
-                    float3 p = ro + rd * t_mid;
-
-                    float prev_density = density;
-                    density += sample_density(p) * (t_next - t);
-
-                    if (density > 1.0)
-                    {
-                        float alpha = saturate((1.0 - prev_density) / (density - prev_density));
-                        float t_hit = lerp(t, t_next, alpha);
-
-                        float3 p_hit = ro + rd * t_hit;
-                        float3 g = density_gradient(p_hit);
-                        float3 normal = normalize(g + 1e-4);
-
-                        float3 light_dir = normalize(float3(0.4, 0.8, 0.2));
-                        float lighting = 0.25 + 0.75 * saturate(dot(normal, light_dir));
-
-                        return float4(0.1, lighting, 0.1, 1);
-                    }
-
-                    t = t_next;
                 }
 
                 return float4(0,0,0,1);

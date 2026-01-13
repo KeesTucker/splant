@@ -1,15 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
+    <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="feat: optimized raymarch shader">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Cell.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Cell.hlsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" afterDir="false" />
     </list>
@@ -134,6 +129,7 @@
       <workItem from="1768157476275" duration="2166000" />
       <workItem from="1768198215115" duration="9573000" />
       <workItem from="1768243771179" duration="3109000" />
+      <workItem from="1768288286037" duration="2578000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -271,7 +267,8 @@
     <MESSAGE value="chore: removed render args" />
     <MESSAGE value="feat: Added buggy cell -&gt; cell bonds. Crashing sometimes. Should hold cells at a target distance." />
     <MESSAGE value="fix: some bonds fixes and a TODO for the rest of the fixes." />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: some bonds fixes and a TODO for the rest of the fixes." />
+    <MESSAGE value="feat: optimized raymarch shader" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: optimized raymarch shader" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
