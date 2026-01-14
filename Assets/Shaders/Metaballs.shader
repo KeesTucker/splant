@@ -30,8 +30,11 @@ Shader "Unlit/Raymarch Metaballs"
             float fresnel_strength;
             float max_step_size;
             float min_step_size;
+            float shadow_density_scale;
             float sss_falloff;
-            float sss_max_distance;
+            float sss_start_pos;
+            float sss_step_size;
+            float sss_steps;
             float sss_strength;
             float surface_threshold;
             float3 bounds_max;
@@ -151,19 +154,43 @@ Shader "Unlit/Raymarch Metaballs"
                 return normalize(grad);
             }
             
-            float2 get_density_distance_to_void(float3 start, float3 dir)
+            float3 get_density_distance_shadow(float3 start, float3 dir)
             {
-                float density = 0;
+                float optical_depth = 0;
                 float dist = 0;
-                for (int i = 0; i < 24; ++i)
+                float shadow = 1.0;
+                bool found_void = false;
+                
+                for (int i = 0; i < sss_steps; ++i)
                 {
-                    dist += min_step_size;
+                    dist += sss_step_size;
                     float3 pos = start + dist * dir; 
-                    density += sample_density(pos);
-                    if (density < surface_threshold) break;
-                    if (dist > sss_max_distance) break;
+                    float sample_dens = sample_density(pos);
+                    
+                    if (!found_void)
+                    {
+                        optical_depth += sample_dens * sss_step_size;
+                        
+                        // TODO: experiment with multiplying surface threshold to avoid that gross bright area in between objects
+                        if (sample_dens < surface_threshold)
+                        {
+                            found_void = true;
+                        }
+                    }
+                    else
+                    {
+                        // Exponential falloff - each dense sample reduces shadow
+                        shadow *= exp(-sample_dens * sss_step_size * shadow_density_scale);
+                        
+                        // Or simpler linear falloff:
+                        // shadow *= saturate(1.0 - sample_dens / surface_threshold);
+                        
+                        // Early out if nearly fully shadowed
+                        if (shadow < 0.01) break;
+                    }
                 }
-                return float2(density, dist);
+                
+                return float3(optical_depth, dist, shadow);
             }
             
             float4 frag(vs_out i) : SV_Target
@@ -221,28 +248,25 @@ Shader "Unlit/Raymarch Metaballs"
                         // Calculate normal with adaptive epsilon
                         float eps = cell_radius * 0.05;
                         float3 normal = calc_normal(p, eps);
-                        
-                        // Improved lighting
-                        float ndotl = dot(normal, light_dir);
-                        float diffuse = max(0.0, ndotl);
-                        
+
                         // Cast ray into the surface toward the light
-                        float2 distance_density_to_void = get_density_distance_to_void(p, light_dir);
+                        // TODO: unsure if offseting my normal actually helps.
+                        float3 result = get_density_distance_shadow(p + normal * sss_start_pos, light_dir);
                         
-                        // Calculate SSS based on how much material the light passes through
-                        float sss_factor = 0.0;
-                        if (distance_density_to_void.x < sss_max_distance)
-                        {
-                            // Exponential falloff based on material thickness
-                            float thickness = distance_density_to_void.x / sss_max_distance;
-                            sss_factor = exp(-thickness * sss_falloff) * sss_strength;
-                            
-                            // Also consider density along the path
-                            float density_factor = saturate(1.0 - distance_density_to_void.y * 0.1);
-                            sss_factor *= density_factor;
-                            float backlight = saturate(-ndotl);
-                            sss_factor *= (1.0 + backlight * 2.0);
-                        }
+                        float shadow = result.z;
+
+                        // Diffuse with shadow
+                        float ndotl = dot(normal, light_dir);
+                        float diffuse = max(0.0, ndotl) * shadow;
+
+                        // SSS with shadow - light can't transmit through if it's blocked!
+                        float optical_depth = result.x;
+                        // Use optical depth directly instead of normalizing by distance
+                        float sss_factor = exp(-optical_depth * sss_falloff) * sss_strength;
+                        sss_factor *= shadow;
+
+                        float backlight = saturate(-ndotl);
+                        sss_factor *= (1.0 + backlight * 2.0);
 
                         // Fresnel rim light
                         float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), fresnel_pow);

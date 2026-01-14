@@ -3,12 +3,9 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Mats/SplantMat.mat" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Mats/SplantMat.mat.meta" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Raymarch.shader.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Metaballs.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Metaballs.shader" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,6 +42,8 @@
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Cell.hlsl" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Metaballs.shader" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Metaballs.shader.meta" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Splant.compute" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/asdf.b0nes.gpu_sorting@09a6081d96/Runtime/DeviceRadixSort.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/asdf.b0nes.gpu_sorting@09a6081d96/Shaders/DeviceRadixSort.compute" root0="SKIP_HIGHLIGHTING" />
@@ -138,7 +137,8 @@
       <workItem from="1768327767179" duration="4085000" />
       <workItem from="1768332302957" duration="898000" />
       <workItem from="1768369093814" duration="469000" />
-      <workItem from="1768373671280" duration="6960000" />
+      <workItem from="1768373671280" duration="7008000" />
+      <workItem from="1768416992002" duration="4565000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -268,7 +268,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768332684174</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="feat: first working SSS approximation/implementation">
+      <option name="closed" value="true" />
+      <created>1768381043347</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1768381043347</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -313,7 +321,8 @@
     <MESSAGE value="chore: remove broken sss" />
     <MESSAGE value="feat: paramatized much of the metaballs params and tried re implementing sss with no luck." />
     <MESSAGE value="feat: fully paramatize raymarch shader and comment out SSS" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: fully paramatize raymarch shader and comment out SSS" />
+    <MESSAGE value="feat: first working SSS approximation/implementation" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: first working SSS approximation/implementation" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

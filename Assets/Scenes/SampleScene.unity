@@ -157,7 +157,7 @@ MonoBehaviour:
   sortCompute: {fileID: 7200000, guid: dd9e6c4b54e463c409512ef8efb72fbd, type: 3}
   mainLight: {fileID: 705507995}
   raymarchMaterial: {fileID: 2100000, guid: ed01d611c199d274ca29294071c5ed6d, type: 2}
-  maxCells: 100000
+  maxCells: 10000
   compactEveryNFrames: 20
   bucketSize: 0.2
   bucketTableSize: 262144
@@ -171,15 +171,17 @@ MonoBehaviour:
   minStepSize: 0.02001
   maxStepSize: 0.0667
   surfaceThreshold: 0.5
-  solidThreshold: 20
   ambientLight: 0.05
   fresnelPow: 3
   fresnelStrength: 0.05
-  baseColour: {r: 0.075768195, g: 0.509434, b: 0.05526879, a: 1}
-  sssColor: {r: 0.21886766, g: 0.36900002, b: 0, a: 1}
-  sssStrength: 0.071
-  sssFalloff: 3.66
-  sssMaxDistance: 41.1
+  baseColour: {r: 0.015514868, g: 0.3679245, b: 0, a: 1}
+  shadowDensityScale: 4.02
+  sssColor: {r: 0.45422634, g: 0.5660378, b: 0, a: 1}
+  sssStrength: 0.168
+  sssFalloff: 0.96
+  sssStartPos: 0
+  sssSteps: 12
+  sssStepSize: 0.174
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0
