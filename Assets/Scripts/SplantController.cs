@@ -49,6 +49,7 @@ public class SplantController : MonoBehaviour
     private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
     private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
+    private static readonly int LightDirID = Shader.PropertyToID("light_dir");
     private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
     private static readonly int MaxBondsPerCellID = Shader.PropertyToID("max_bonds_per_cell");
     private static readonly int MaxCellsID   = Shader.PropertyToID("max_cells");
@@ -63,13 +64,16 @@ public class SplantController : MonoBehaviour
     private static readonly int SSSFalloffID = Shader.PropertyToID("sss_falloff");
     private static readonly int SSSMaxDistanceID = Shader.PropertyToID("sss_max_distance");
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
+    private static readonly int SolidThresholdID = Shader.PropertyToID("solid_threshold");
     private static readonly int SurfaceThresholdID = Shader.PropertyToID("surface_threshold");
     private static readonly int TimeID = Shader.PropertyToID("time");
 
+    [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
+    [SerializeField] private Camera mainCamera;
     [SerializeField] private ComputeShader compute;
     [SerializeField] private ComputeShader sortCompute;
+    [SerializeField] private Transform mainLight;
     [SerializeField] private Material raymarchMaterial;
-    [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
     [SerializeField] private uint maxCells = 100000;
     
     [Header("Compaction")]
@@ -100,8 +104,10 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float minStepSize = 0.02f;
     [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
     [SerializeField] private float maxStepSize = 0.0667f;
-    [Range(0, 1)]
+    [Range(0, 1f)]
     [SerializeField] private float surfaceThreshold = 0.5f;
+    [Range(0, 100f)]
+    [SerializeField] private float solidThreshold = 20f;
     [SerializeField] private float ambientLight = 0.3f;
     [SerializeField] private float fresnelPow = 3f;
     [SerializeField] private float fresnelStrength = 0.15f;
@@ -113,7 +119,7 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float sssStrength = 0.6f;
     [Range(0.1f, 5f)]
     [SerializeField] private float sssFalloff = 1.5f;
-    [Range(0.1f, 4f)]
+    [Range(0.1f, 100f)]
     [SerializeField] private float sssMaxDistance = 1.2f;
     
     private ComputeBuffer _bonds;
@@ -132,15 +138,12 @@ public class SplantController : MonoBehaviour
     private ComputeBuffer _temp1;
     private ComputeBuffer _temp2;
     private ComputeBuffer _temp3;
-
-    private Camera _mainCamera;
+    
     private DeviceRadixSort _deviceRadixSort;
     private int _frameCount;
 
     private void Awake()
     {
-        _mainCamera = Camera.main;
-        
         FindKernels();
         InitBuffers();
         InitRadixSort();
@@ -247,6 +250,9 @@ public class SplantController : MonoBehaviour
         // Set time
         compute.SetFloat(DeltaTimeID, Time.deltaTime);
         compute.SetFloat(TimeID, Time.time);
+        
+        // Set light dir
+        raymarchMaterial.SetVector(LightDirID, -mainLight.transform.forward);
     
         // Grow cells
         compute.DispatchIndirect(_growKernel, _cellComputeArgs);
@@ -295,12 +301,12 @@ public class SplantController : MonoBehaviour
         //compute.DispatchIndirect(_applyBondForcesKernel, _cellComputeArgs);
 
         // Rendering
-        var view = _mainCamera.worldToCameraMatrix;
-        var proj = GL.GetGPUProjectionMatrix(_mainCamera.projectionMatrix, false);
+        var view = mainCamera.worldToCameraMatrix;
+        var proj = GL.GetGPUProjectionMatrix(mainCamera.projectionMatrix, false);
         var invViewProj = (proj * view).inverse;
 
         raymarchMaterial.SetMatrix(InvViewProjID, invViewProj);
-        raymarchMaterial.SetVector(CameraPosID, _mainCamera.transform.position);
+        raymarchMaterial.SetVector(CameraPosID, mainCamera.transform.position);
         
         Graphics.DrawProcedural(
             raymarchMaterial,
@@ -338,6 +344,7 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
         raymarchMaterial.SetFloat(SSSMaxDistanceID, sssMaxDistance);
         raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
+        raymarchMaterial.SetFloat(SolidThresholdID, solidThreshold);
         raymarchMaterial.SetFloat(SurfaceThresholdID, surfaceThreshold);
         raymarchMaterial.SetInt(BucketTableSizeID, bucketTableSize);
         raymarchMaterial.SetVector(BaseColorID, baseColour);

@@ -1,4 +1,4 @@
-Shader "Unlit/Raymarch"
+Shader "Unlit/Raymarch Metaballs"
 {
     SubShader
     {
@@ -37,11 +37,11 @@ Shader "Unlit/Raymarch"
             float3 bounds_max;
             float3 bounds_min;
             float3 camera_pos;
+            float3 light_dir;
             float3 sss_color;
             float4 base_color;
             float4x4 inv_view_proj;
             uint bucket_table_size;
-
 
             StructuredBuffer<cell> cells;
             StructuredBuffer<uint> bucket_end;
@@ -87,8 +87,7 @@ Shader "Unlit/Raymarch"
                 return t_exit >= max(t_enter, 0.0);
             }
 
-            // metaball SDF with proper smoothing
-            float evaluate_metaballs(float3 p)
+            float sample_density(float3 p)
             {
                 float density = 0.0;
                 
@@ -107,67 +106,64 @@ Shader "Unlit/Raymarch"
                             uint start = bucket_start[bucket];
                             uint end = bucket_end[bucket];
                             
-                            if (start != 0xffffffff && start < end)
+                            if (start == 0xffffffff || start >= end) continue;
+                            for (uint i = start; i < end; i++)
                             {
-                                for (uint i = start; i < end; i++)
-                                {
-                                    uint idx = cell_indices[i];
-                                    if (cell_full_hash[idx] == hash && cells[idx].age >= 0)
-                                    {
-                                        float3 cell_pos = cells[idx].position;
-                                        float3 diff = p - cell_pos;
-                                        float dist_sq = dot(diff, diff);
-                                        
-                                        if (dist_sq < cell_radius_sq)
-                                        {
-                                            float ratio = dist_sq / cell_radius_sq;
-                                            // inverted smooth polynomial kernel
-                                            float influence = 1.0 - smooth_step(ratio);
-                                            density += influence;
-                                        }
-                                    }
-                                }
+                                uint idx = cell_indices[i];
+                                if (cell_full_hash[idx] != hash || cells[idx].age < 0) continue;
+                                
+                                float3 cell_pos = cells[idx].position;
+                                float3 diff = p - cell_pos;
+                                float dist_sq = dot(diff, diff);
+                                
+                                if (dist_sq >= cell_radius_sq) continue;
+                                
+                                float ratio = dist_sq / cell_radius_sq;
+                                // inverted smooth polynomial kernel
+                                float influence = 1.0 - smooth_step(ratio);
+                                density += influence;
                             }
                         }
                     }
                 }
                 
-                // threshold for surface (tune this)
-                return surface_threshold - density;
+                return density;
             }
 
-            // tetrahedral normal for better quality
+            // tetrahedral normals
             float3 calc_normal(float3 p, float eps)
             {
+                // Tetrahedral offsets
                 float2 e = float2(1, -1) * eps;
-                return normalize(
-                    e.xyy * evaluate_metaballs(p + e.xyy) +
-                    e.yyx * evaluate_metaballs(p + e.yyx) +
-                    e.yxy * evaluate_metaballs(p + e.yxy) +
-                    e.xxx * evaluate_metaballs(p + e.xxx)
-                );
+                
+                // Sample density at 4 tetrahedral points
+                float d1 = sample_density(p + e.xyy);
+                float d2 = sample_density(p + e.yyx);
+                float d3 = sample_density(p + e.yxy);
+                float d4 = sample_density(p + e.xxx);
+                
+                // Compute gradient and NEGATE it (density increases inward, normals point outward)
+                float3 grad = -(e.xyy * d1 +
+                                e.yyx * d2 +
+                                e.yxy * d3 +
+                                e.xxx * d4);
+                
+                return normalize(grad);
             }
             
-            float estimate_thickness(float3 p, float3 light_dir, float step_size, float max_distance)
+            float2 get_density_distance_to_void(float3 start, float3 dir)
             {
-                float thickness = 0.0;
-                float3 sample_pos = p - light_dir * step_size;
-
-                [unroll]
-                for (int k = 0; k < 8; k++)
+                float density = 0;
+                float dist = 0;
+                for (int i = 0; i < 24; ++i)
                 {
-                    if (thickness >= max_distance)
-                        break;
-
-                    float sdf = evaluate_metaballs(sample_pos);
-                    if (sdf > 0.0)
-                        break;
-
-                    thickness += step_size;
-                    sample_pos -= light_dir * step_size;
+                    dist += min_step_size;
+                    float3 pos = start + dist * dir; 
+                    density += sample_density(pos);
+                    if (density < surface_threshold) break;
+                    if (dist > sss_max_distance) break;
                 }
-
-                return thickness;
+                return float2(density, dist);
             }
             
             float4 frag(vs_out i) : SV_Target
@@ -198,10 +194,10 @@ Shader "Unlit/Raymarch"
                     if (t > t_max) break;
                     
                     float3 p = ro + rd * t;
-                    float sdf = evaluate_metaballs(p);
+                    float density = sample_density(p);
                     
                     // Surface hit - refine with binary search
-                    if (sdf < 0.0)
+                    if (density > surface_threshold)
                     {
                         // Back up slightly
                         float t_near = t - max_step_size;
@@ -212,9 +208,9 @@ Shader "Unlit/Raymarch"
                         {
                             float t_mid = (t_near + t_far) * 0.5;
                             float3 p_mid = ro + rd * t_mid;
-                            float sdf_mid = evaluate_metaballs(p_mid);
+                            float density_mid = sample_density(p_mid);
                             
-                            if (sdf_mid < 0.0)
+                            if (density_mid > surface_threshold)
                                 t_far = t_mid;
                             else
                                 t_near = t_mid;
@@ -227,22 +223,40 @@ Shader "Unlit/Raymarch"
                         float3 normal = calc_normal(p, eps);
                         
                         // Improved lighting
-                        float3 light_dir = normalize(float3(0.5, 1, 0.3));
                         float ndotl = dot(normal, light_dir);
                         float diffuse = max(0.0, ndotl);
                         
-                        // Soft ambient occlusion approximation (buggy)
-                        //float ao = 1.0 - saturate(abs(sdf) * 2.0);
+                        // Cast ray into the surface toward the light
+                        float2 distance_density_to_void = get_density_distance_to_void(p, light_dir);
                         
+                        // Calculate SSS based on how much material the light passes through
+                        float sss_factor = 0.0;
+                        if (distance_density_to_void.x < sss_max_distance)
+                        {
+                            // Exponential falloff based on material thickness
+                            float thickness = distance_density_to_void.x / sss_max_distance;
+                            sss_factor = exp(-thickness * sss_falloff) * sss_strength;
+                            
+                            // Also consider density along the path
+                            float density_factor = saturate(1.0 - distance_density_to_void.y * 0.1);
+                            sss_factor *= density_factor;
+                            float backlight = saturate(-ndotl);
+                            sss_factor *= (1.0 + backlight * 2.0);
+                        }
+
                         // Fresnel rim light
                         float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), fresnel_pow);
-                        
-                        float3 color = base_color.rgb * (ambient_light + diffuse * (1 - ambient_light)) + fresnel * fresnel_strength;
+
+                        // Combine lighting with SSS
+                        float3 sss_contribution = sss_color * sss_factor;
+                        float3 diffuse_light = base_color.rgb * (ambient_light + diffuse * (1 - ambient_light));
+                        float3 color = diffuse_light + sss_contribution + fresnel * fresnel_strength;
+
                         return float4(color, 1);
                     }
                     
                     // Adaptive step with minimum and maximum bounds
-                    float step = clamp(abs(sdf) * 0.8, min_step_size, max_step_size);
+                    float step = clamp(abs(surface_threshold - density) * 0.8, min_step_size, max_step_size);
                     t += step;
                 }
 
