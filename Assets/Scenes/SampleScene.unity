@@ -167,21 +167,20 @@ MonoBehaviour:
   bondLinearStiffness: 1
   bondBendStiffness: 0.1
   maxBondsPerCell: 4
+  maxSteps: 128
   cellRadius: 0.1334
   minStepSize: 0.02001
   maxStepSize: 0.0667
   surfaceThreshold: 0.5
-  ambientLight: 0.05
   fresnelPow: 3
-  fresnelStrength: 0.05
-  baseColour: {r: 0.015514868, g: 0.3679245, b: 0, a: 1}
-  shadowDensityScale: 4.02
-  sssColor: {r: 0.45422634, g: 0.5660378, b: 0, a: 1}
-  sssStrength: 0.168
-  sssFalloff: 0.96
+  fresnelStrength: 0
+  baseColour: {r: 0.0013477072, g: 0.01886791, b: 0, a: 1}
+  sssColor: {r: 0.48707294, g: 0.5647059, b: 0, a: 1}
+  sssStrength: 0.2
+  sssFalloff: 0.2
   sssStartPos: 0
   sssSteps: 12
-  sssStepSize: 0.174
+  sssStepSize: 0.5
 --- !u!4 &423125485
 Transform:
   m_ObjectHideFlags: 0

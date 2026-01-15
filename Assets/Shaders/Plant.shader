@@ -1,4 +1,4 @@
-Shader "Unlit/Raymarch Metaballs"
+Shader "Raymarch/Plant"
 {
     SubShader
     {
@@ -15,6 +15,8 @@ Shader "Unlit/Raymarch Metaballs"
             #include "UnityCG.cginc"
             #include "Cell.hlsl"
             #include "Helpers.hlsl"
+            
+            #define FRESNEL_ENABLED 0
 
             struct vs_out
             {
@@ -30,11 +32,8 @@ Shader "Unlit/Raymarch Metaballs"
             float fresnel_strength;
             float max_step_size;
             float min_step_size;
-            float shadow_density_scale;
             float sss_falloff;
-            float sss_start_pos;
             float sss_step_size;
-            float sss_steps;
             float sss_strength;
             float surface_threshold;
             float3 bounds_max;
@@ -45,6 +44,9 @@ Shader "Unlit/Raymarch Metaballs"
             float4 base_color;
             float4x4 inv_view_proj;
             uint bucket_table_size;
+            uint max_steps;
+            uint sss_steps;
+            
 
             StructuredBuffer<cell> cells;
             StructuredBuffer<uint> bucket_end;
@@ -67,7 +69,7 @@ Shader "Unlit/Raymarch Metaballs"
                 return o;
             }
 
-            bool ray_aabb(
+            bool ray_intersection_aabb(
                 float3 ro,
                 float3 rd,
                 float3 bmin,
@@ -136,16 +138,16 @@ Shader "Unlit/Raymarch Metaballs"
             // tetrahedral normals
             float3 calc_normal(float3 p, float eps)
             {
-                // Tetrahedral offsets
+                // tetrahedral offsets
                 float2 e = float2(1, -1) * eps;
                 
-                // Sample density at 4 tetrahedral points
+                // sample density at 4 tetrahedral points
                 float d1 = sample_density(p + e.xyy);
                 float d2 = sample_density(p + e.yyx);
                 float d3 = sample_density(p + e.yxy);
                 float d4 = sample_density(p + e.xxx);
                 
-                // Compute gradient and NEGATE it (density increases inward, normals point outward)
+                // compute gradient and negate it (density increases inward, normals point outward)
                 float3 grad = -(e.xyy * d1 +
                                 e.yyx * d2 +
                                 e.yxy * d3 +
@@ -154,134 +156,125 @@ Shader "Unlit/Raymarch Metaballs"
                 return normalize(grad);
             }
             
-            float3 get_density_distance_shadow(float3 start, float3 dir)
+            // helper for calculating sss
+            // TODO: anisotropic scattering using cell polarity?
+            float optical_depth_along_ray(float3 start, float3 dir)
             {
-                float optical_depth = 0;
                 float dist = 0;
-                float shadow = 1.0;
-                bool found_void = false;
-                
+                // approximation of how much material we have moved through
+                float optical_depth = 0;
+
                 for (int i = 0; i < sss_steps; ++i)
                 {
-                    dist += sss_step_size;
+                    // progressivley coarser step size so we capture fine detail close to hit point and then sample at
+                    // lower res further away
+                    float step = lerp(0, sss_step_size, float(i + 1) / float(sss_steps + 1));
+                    dist += step;
                     float3 pos = start + dist * dir; 
-                    float sample_dens = sample_density(pos);
-                    
-                    if (!found_void)
-                    {
-                        optical_depth += sample_dens * sss_step_size;
-                        
-                        // TODO: experiment with multiplying surface threshold to avoid that gross bright area in between objects
-                        if (sample_dens < surface_threshold)
-                        {
-                            found_void = true;
-                        }
-                    }
-                    else
-                    {
-                        // Exponential falloff - each dense sample reduces shadow
-                        shadow *= exp(-sample_dens * sss_step_size * shadow_density_scale);
-                        
-                        // Or simpler linear falloff:
-                        // shadow *= saturate(1.0 - sample_dens / surface_threshold);
-                        
-                        // Early out if nearly fully shadowed
-                        if (shadow < 0.01) break;
-                    }
+                    float density = sample_density(pos);
+                    // since we are moving through progressivley more material this isn't linear with distance
+                    // it does, however, let us capture fine details, like small overhang shadows while still getting 
+                    // good light transmission through thicker bits
+                    optical_depth += density;
                 }
                 
-                return float3(optical_depth, dist, shadow);
+                return optical_depth;
             }
             
-            float4 frag(vs_out i) : SV_Target
+            float3 get_ray_dir_for_uv(float2 uv)
             {
-                // normalized device coords, -1 -> 1 across the screen on x & y
-                float2 ndc = i.uv * 2.0 - 1.0;
+                // -1 -> 1 across the screen on x & y
+                float2 normalized_device_coordinates = uv * 2.0 - 1.0;
                 // flip so -1 at bottom of screen and 1 at top
-                ndc.y *= -1.0;
-                
-                float4 clip = float4(ndc, 1, 1);
-                
-                float4 world = mul(inv_view_proj, clip);
-                world.xyz /= world.w;
+                normalized_device_coordinates.y *= -1.0;
+                // set z to 1 for far clipping plane, set w to 1 for homogeneous coordinate
+                float4 clip_space_pos = float4(normalized_device_coordinates, 1, 1);
+                // inverse perspective projection (unprojection)
+                float4 world_pos = mul(inv_view_proj, clip_space_pos);
+                // divide by homogeneous coordinate to retrieve true world space pos
+                world_pos.xyz /= world_pos.w;
+                // find dir from camera pos to point at far clipping plane 
+                return normalize(world_pos.xyz - camera_pos);
+            }
+            
+            float4 frag(vs_out input) : SV_Target
+            {
+                // start ray at camera position
+                float3 ray_origin = camera_pos;
+                float3 ray_direction = get_ray_dir_for_uv(input.uv);
 
-                float3 ro = camera_pos;
-                float3 rd = normalize(world.xyz - camera_pos);
-
-                float t_enter, t_exit;
-                if (!ray_aabb(ro, rd, bounds_min, bounds_max, t_enter, t_exit))
+                // check if we intersect with the sim bounds
+                float dist_enter, dist_exit;
+                if (!ray_intersection_aabb(
+                    ray_origin,
+                    ray_direction,
+                    bounds_min,
+                    bounds_max,
+                    dist_enter,
+                    dist_exit
+                    )
+                )
                     return float4(0,0,0,1);
 
-                float t = max(t_enter, 0.0);
-                float t_max = t_exit;
+                float dist = max(dist_enter, 0.0);
+                float dist_max = dist_exit;
                 
                 [loop]
-                for (int iter = 0; iter < 128; iter++)
+                for (int i = 0; i < max_steps; i++)
                 {
-                    if (t > t_max) break;
+                    // early out if we have exited bounds
+                    if (dist > dist_max) break;
                     
-                    float3 p = ro + rd * t;
+                    float3 p = ray_origin + ray_direction * dist;
                     float density = sample_density(p);
                     
-                    // Surface hit - refine with binary search
+                    // surface hit, refine with binary search
                     if (density > surface_threshold)
                     {
-                        // Back up slightly
-                        float t_near = t - max_step_size;
-                        float t_far = t;
+                        // back up slightly
+                        float dist_near = dist - max_step_size;
+                        float dist_far = dist;
                         
-                        // Binary search for precise surface location
+                        // binary search for precise surface location
                         for (int j = 0; j < 4; j++)
                         {
-                            float t_mid = (t_near + t_far) * 0.5;
-                            float3 p_mid = ro + rd * t_mid;
+                            float t_mid = (dist_near + dist_far) * 0.5;
+                            float3 p_mid = ray_origin + ray_direction * t_mid;
                             float density_mid = sample_density(p_mid);
                             
                             if (density_mid > surface_threshold)
-                                t_far = t_mid;
+                                dist_far = t_mid;
                             else
-                                t_near = t_mid;
+                                dist_near = t_mid;
                         }
                         
-                        p = ro + rd * ((t_near + t_far) * 0.5);
+                        // recalculate p with our refined distance
+                        p = ray_origin + ray_direction * ((dist_near + dist_far) * 0.5);
                         
-                        // Calculate normal with adaptive epsilon
-                        float eps = cell_radius * 0.05;
-                        float3 normal = calc_normal(p, eps);
-
-                        // Cast ray into the surface toward the light
-                        // TODO: unsure if offseting my normal actually helps.
-                        float3 result = get_density_distance_shadow(p + normal * sss_start_pos, light_dir);
+                        // crude approximation of sss, surprisingly, by not calculating diffuse lighting and just
+                        // applying the sss on top of a dark base colour you get a really nice soft shadow with self
+                        // shadowing for free since we march along light dir + it hides a lot of the imperfections
+                        float optical_depth_toward_light = optical_depth_along_ray(p, light_dir);
+                        float sss_factor = exp(-optical_depth_toward_light * sss_falloff) * sss_strength;
+                        sss_factor = saturate(sss_factor);
                         
-                        float shadow = result.z;
-
-                        // Diffuse with shadow
-                        float ndotl = dot(normal, light_dir);
-                        float diffuse = max(0.0, ndotl) * shadow;
-
-                        // SSS with shadow - light can't transmit through if it's blocked!
-                        float optical_depth = result.x;
-                        // Use optical depth directly instead of normalizing by distance
-                        float sss_factor = exp(-optical_depth * sss_falloff) * sss_strength;
-                        sss_factor *= shadow;
-
-                        float backlight = saturate(-ndotl);
-                        sss_factor *= (1.0 + backlight * 2.0);
-
-                        // Fresnel rim light
-                        float fresnel = pow(1.0 - max(0.0, dot(normal, -rd)), fresnel_pow);
-
-                        // Combine lighting with SSS
-                        float3 sss_contribution = sss_color * sss_factor;
-                        float3 diffuse_light = base_color.rgb * (ambient_light + diffuse * (1 - ambient_light));
-                        float3 color = diffuse_light + sss_contribution + fresnel * fresnel_strength;
-
+                        float3 color = lerp(base_color.rgb, sss_color, sss_factor);
+                        
+                        // fresnel rim light
+                        if (FRESNEL_ENABLED)
+                        {
+                            float epsilon = cell_radius * 0.05;
+                            float3 normal = calc_normal(p, epsilon);
+                            float fresnel = pow(1.0 - max(0.0, dot(normal, -ray_direction)), fresnel_pow);
+                            color += fresnel * fresnel_strength;
+                        }
+                        
                         return float4(color, 1);
                     }
                     
-                    // Adaptive step with minimum and maximum bounds
+                    // adaptive step with minimum and maximum bounds, 0.8 multiplier seems to be conservative enough
                     float step = clamp(abs(surface_threshold - density) * 0.8, min_step_size, max_step_size);
-                    t += step;
+                    dist += step;
                 }
 
                 return float4(0,0,0,1);

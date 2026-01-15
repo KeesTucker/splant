@@ -2,8 +2,6 @@ using System.Runtime.InteropServices;
 using Structs;
 using UnityEngine;
 using GPUSorting.Runtime;
-using UnityEngine.Serialization;
-using UnityEngine.UI;
 
 public class SplantController : MonoBehaviour
 {
@@ -22,7 +20,6 @@ public class SplantController : MonoBehaviour
     private int _remapBondsKernel;
     private int _writeCompactedKernel;
     
-    private static readonly int AmbientLightID = Shader.PropertyToID("ambient_light");
     private static readonly int BaseColorID = Shader.PropertyToID("base_color");
     private static readonly int BondBendStiffnessID = Shader.PropertyToID("bond_bend_stiffness");
     private static readonly int BondLinearStiffnessID = Shader.PropertyToID("bond_linear_stiffness");
@@ -56,6 +53,7 @@ public class SplantController : MonoBehaviour
     private static readonly int MaxCellsID   = Shader.PropertyToID("max_cells");
     private static readonly int MaxPosID = Shader.PropertyToID("max_pos"); // replace with bounds max
     private static readonly int MaxStepSizeID = Shader.PropertyToID("max_step_size");
+    private static readonly int MaxStepsID = Shader.PropertyToID("max_steps");
     private static readonly int MinPosID = Shader.PropertyToID("min_pos"); // replace with bounds min 
     private static readonly int MinStepSizeID = Shader.PropertyToID("min_step_size");
     private static readonly int NeighborRadiusID = Shader.PropertyToID("neighbor_radius");
@@ -67,7 +65,6 @@ public class SplantController : MonoBehaviour
     private static readonly int SSSStepSizeID = Shader.PropertyToID("sss_step_size");
     private static readonly int SSSStepsID = Shader.PropertyToID("sss_steps");
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
-    private static readonly int ShadowDensityScaleID = Shader.PropertyToID("shadow_density_scale");
     private static readonly int SurfaceThresholdID = Shader.PropertyToID("surface_threshold");
     private static readonly int TimeID = Shader.PropertyToID("time");
 
@@ -100,7 +97,9 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float bondBendStiffness = 1f;
     [SerializeField] private uint maxBondsPerCell = 6;
     
-    [Header("Metaballs")]
+    [Header("Rendering")]
+    [Range(1, 512)] 
+    [SerializeField] private int maxSteps = 256;
     [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
     [SerializeField] private float cellRadius = 0.05f;
     [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
@@ -109,13 +108,9 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float maxStepSize = 0.0667f;
     [Range(0.001f, 1f)]
     [SerializeField] private float surfaceThreshold = 0.5f;
-    [SerializeField] private float ambientLight = 0.3f;
     [SerializeField] private float fresnelPow = 3f;
     [SerializeField] private float fresnelStrength = 0.15f;
     [SerializeField] private Color baseColour = new(0.2f, 0.9f, 0.5f, 1f);
-
-    [Header("Object Shadowing")]
-    [SerializeField] private float shadowDensityScale = 1f;
     
     [Header("SSS")] 
     [SerializeField] private Color sssColor = new(0.95f, 0.6f, 0.5f, 1f);
@@ -273,7 +268,7 @@ public class SplantController : MonoBehaviour
         
         // Compact every N frames to remove dead cells
         _frameCount++;
-        if (_frameCount >= compactEveryNFrames)
+        if (compactEveryNFrames != 0 && _frameCount >= compactEveryNFrames)
         {
             _frameCount = 0;
             CompactCells();
@@ -346,7 +341,6 @@ public class SplantController : MonoBehaviour
         compute.SetVector(MaxPosID, bounds.max);
         compute.SetVector(MinPosID, bounds.min);
         
-        raymarchMaterial.SetFloat(AmbientLightID,  ambientLight);
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
         raymarchMaterial.SetFloat(CellRadiusSqID, cellRadius * cellRadius);
@@ -359,9 +353,9 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetFloat(SSSStartPosID, sssStartPos);
         raymarchMaterial.SetFloat(SSSStepSizeID, sssStepSize);
         raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
-        raymarchMaterial.SetFloat(ShadowDensityScaleID, shadowDensityScale);
         raymarchMaterial.SetFloat(SurfaceThresholdID, surfaceThreshold);
         raymarchMaterial.SetInt(BucketTableSizeID, bucketTableSize);
+        raymarchMaterial.SetInt(MaxStepsID, maxSteps);
         raymarchMaterial.SetInt(SSSStepsID, sssSteps);
         raymarchMaterial.SetVector(BaseColorID, baseColour);
         raymarchMaterial.SetVector(BoundsMaxId, bounds.max);

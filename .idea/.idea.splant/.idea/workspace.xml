@@ -5,7 +5,10 @@
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Metaballs.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Metaballs.shader" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Metaballs.shader" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Metaballs.shader.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Splant.compute.meta" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -138,7 +141,8 @@
       <workItem from="1768332302957" duration="898000" />
       <workItem from="1768369093814" duration="469000" />
       <workItem from="1768373671280" duration="7008000" />
-      <workItem from="1768416992002" duration="4565000" />
+      <workItem from="1768416992002" duration="4589000" />
+      <workItem from="1768459685862" duration="7328000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -276,7 +280,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768381043347</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="feat: SELF SHADOWING AND VASTLY IMPROVED SSS">
+      <option name="closed" value="true" />
+      <created>1768421603482</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1768421603482</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -322,7 +334,8 @@
     <MESSAGE value="feat: paramatized much of the metaballs params and tried re implementing sss with no luck." />
     <MESSAGE value="feat: fully paramatize raymarch shader and comment out SSS" />
     <MESSAGE value="feat: first working SSS approximation/implementation" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: first working SSS approximation/implementation" />
+    <MESSAGE value="feat: SELF SHADOWING AND VASTLY IMPROVED SSS" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: SELF SHADOWING AND VASTLY IMPROVED SSS" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
