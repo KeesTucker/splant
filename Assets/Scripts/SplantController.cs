@@ -47,6 +47,7 @@ public class SplantController : MonoBehaviour
     private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
     private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
+    private static readonly int InvCellRadiusSq = Shader.PropertyToID("inv_cell_radius_sq");
     private static readonly int LightDirID = Shader.PropertyToID("light_dir");
     private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
     private static readonly int MaxBondsPerCellID = Shader.PropertyToID("max_bonds_per_cell");
@@ -67,7 +68,7 @@ public class SplantController : MonoBehaviour
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
     private static readonly int SurfaceThresholdID = Shader.PropertyToID("surface_threshold");
     private static readonly int TimeID = Shader.PropertyToID("time");
-
+    
     [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
     [SerializeField] private Camera mainCamera;
     [SerializeField] private ComputeShader compute;
@@ -344,6 +345,7 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
         raymarchMaterial.SetFloat(CellRadiusSqID, cellRadius * cellRadius);
+        raymarchMaterial.SetFloat(InvCellRadiusSq, 1 / (cellRadius * cellRadius));
         raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
         raymarchMaterial.SetFloat(FresnelStrengthID, fresnelStrength);
         raymarchMaterial.SetFloat(MaxStepSizeID, maxStepSize);

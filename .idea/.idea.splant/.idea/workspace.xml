@@ -3,8 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Freecam.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Freecam.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -34,17 +33,12 @@
 }</component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/Freecam.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/SimpleCameraInput.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/SplantController.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Bond.hlsl" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Cell.hlsl" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Metaballs.shader" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Metaballs.shader.meta" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Shaders/Splant.compute" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/asdf.b0nes.gpu_sorting@09a6081d96/Runtime/DeviceRadixSort.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/asdf.b0nes.gpu_sorting@09a6081d96/Shaders/DeviceRadixSort.compute" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/asdf.b0nes.gpu_sorting@09a6081d96/Shaders/SortCommon.hlsl" root0="SKIP_HIGHLIGHTING" />
@@ -139,7 +133,7 @@
       <workItem from="1768369093814" duration="469000" />
       <workItem from="1768373671280" duration="7008000" />
       <workItem from="1768416992002" duration="4589000" />
-      <workItem from="1768459685862" duration="8078000" />
+      <workItem from="1768459685862" duration="8398000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -293,7 +287,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768467247892</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="fix: optimize density sampling to only check buckets in range, removed dodgy free cam script. few other misc tweaks I can't remember">
+      <option name="closed" value="true" />
+      <created>1768467956340</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1768467956340</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -341,7 +343,8 @@
     <MESSAGE value="feat: first working SSS approximation/implementation" />
     <MESSAGE value="feat: SELF SHADOWING AND VASTLY IMPROVED SSS" />
     <MESSAGE value="feat: super clean rendering with only SSS, no diffuse and no fresnel!! super pleased, I get self shadowing etc all for free!! it is still quite slow though." />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: super clean rendering with only SSS, no diffuse and no fresnel!! super pleased, I get self shadowing etc all for free!! it is still quite slow though." />
+    <MESSAGE value="fix: optimize density sampling to only check buckets in range, removed dodgy free cam script. few other misc tweaks I can't remember" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: optimize density sampling to only check buckets in range, removed dodgy free cam script. few other misc tweaks I can't remember" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

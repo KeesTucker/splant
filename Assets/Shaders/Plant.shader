@@ -30,6 +30,7 @@ Shader "Raymarch/Plant"
             float cell_radius_sq;
             float fresnel_pow;
             float fresnel_strength;
+            float inv_cell_radius_sq;
             float max_step_size;
             float min_step_size;
             float sss_falloff;
@@ -128,7 +129,7 @@ Shader "Raymarch/Plant"
                                 
                                 if (dist_sq >= cell_radius_sq) continue;
                                 
-                                float ratio = dist_sq / cell_radius_sq;
+                                float ratio = dist_sq * inv_cell_radius_sq;
                                 // inverted smooth polynomial kernel
                                 float influence = 1.0 - smooth_step(ratio);
                                 density += influence;
