@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -33,6 +32,7 @@
 }</component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Scripts/Freecam.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/SplantController.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" root0="FORCE_HIGHLIGHTING" />
@@ -133,7 +133,7 @@
       <workItem from="1768369093814" duration="469000" />
       <workItem from="1768373671280" duration="7008000" />
       <workItem from="1768416992002" duration="4589000" />
-      <workItem from="1768459685862" duration="8398000" />
+      <workItem from="1768459685862" duration="8982000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -295,7 +295,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768467956340</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="feat: small inv sq cell radius optimation + better freecam">
+      <option name="closed" value="true" />
+      <created>1768468440242</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1768468440242</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -344,7 +352,8 @@
     <MESSAGE value="feat: SELF SHADOWING AND VASTLY IMPROVED SSS" />
     <MESSAGE value="feat: super clean rendering with only SSS, no diffuse and no fresnel!! super pleased, I get self shadowing etc all for free!! it is still quite slow though." />
     <MESSAGE value="fix: optimize density sampling to only check buckets in range, removed dodgy free cam script. few other misc tweaks I can't remember" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: optimize density sampling to only check buckets in range, removed dodgy free cam script. few other misc tweaks I can't remember" />
+    <MESSAGE value="feat: small inv sq cell radius optimation + better freecam" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: small inv sq cell radius optimation + better freecam" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

@@ -179,6 +179,8 @@ Shader "Raymarch/Plant"
                     // it does, however, let us capture fine details, like small overhang shadows while still getting 
                     // good light transmission through thicker bits
                     optical_depth += density;
+                    // early exit cause there is no point calculating more than this
+                    if (optical_depth * sss_falloff > 6.0) break;
                 }
                 
                 return optical_depth;
