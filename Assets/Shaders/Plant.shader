@@ -96,14 +96,19 @@ Shader "Raymarch/Plant"
             {
                 float density = 0.0;
                 
+                // Instead of checking all 27 buckets unconditionally, check if you're near bucket boundaries
                 int3 bucket_coord = floor(p / bucket_size);
-                
-                // check neighboring buckets
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        for (int dz = -1; dz <= 1; dz++)
+                float3 local_pos = frac(p / bucket_size);
+                float edge_threshold = cell_radius / bucket_size;
+
+                // Only check neighbors if we're close to the edge
+                int dx_range = (local_pos.x < edge_threshold || local_pos.x > 1.0 - edge_threshold) ? 1 : 0;
+                int dy_range = (local_pos.y < edge_threshold || local_pos.y > 1.0 - edge_threshold) ? 1 : 0;
+                int dz_range = (local_pos.z < edge_threshold || local_pos.z > 1.0 - edge_threshold) ? 1 : 0;
+
+                for (int dx = -dx_range; dx <= dx_range; dx++)
+                    for (int dy = -dy_range; dy <= dy_range; dy++)
+                        for (int dz = -dz_range; dz <= dz_range; dz++)
                         {
                             int3 check_coord = bucket_coord + int3(dx, dy, dz);
                             uint hash = fast_hash_coord(check_coord);
@@ -129,9 +134,6 @@ Shader "Raymarch/Plant"
                                 density += influence;
                             }
                         }
-                    }
-                }
-                
                 return density;
             }
 

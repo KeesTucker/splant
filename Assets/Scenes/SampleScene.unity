@@ -158,7 +158,7 @@ MonoBehaviour:
   mainLight: {fileID: 705507995}
   raymarchMaterial: {fileID: 2100000, guid: ed01d611c199d274ca29294071c5ed6d, type: 2}
   maxCells: 10000
-  compactEveryNFrames: 20
+  compactEveryNFrames: 0
   bucketSize: 0.2
   bucketTableSize: 262144
   neighborCollisionRadius: 0.1334
@@ -167,7 +167,7 @@ MonoBehaviour:
   bondLinearStiffness: 1
   bondBendStiffness: 0.1
   maxBondsPerCell: 4
-  maxSteps: 128
+  maxSteps: 200
   cellRadius: 0.1334
   minStepSize: 0.02001
   maxStepSize: 0.0667
@@ -237,9 +237,6 @@ GameObject:
   m_Component:
   - component: {fileID: 963194228}
   - component: {fileID: 963194227}
-  - component: {fileID: 963194226}
-  - component: {fileID: 963194230}
-  - component: {fileID: 963194229}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -247,14 +244,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &963194226
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 963194225}
-  m_Enabled: 1
 --- !u!20 &963194227
 Camera:
   m_ObjectHideFlags: 0
@@ -321,46 +310,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &963194229
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 963194225}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fa08714d9d4c9f248bd9f7dcf2f54c68, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  CameraSpeed: 2
-  CameraSpeedMultiplier: 2
-  MaxCameraSpeed: 10
-  MouseSensitivity: 5
-  CameraSwitch: 0
---- !u!114 &963194230
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 963194225}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e5c34e4198d81514a9d281a90bfbbb57, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  xAxis:
-    Positive: 100
-    Negative: 97
-  yAxis:
-    Positive: 119
-    Negative: 115
-  zAxis:
-    Positive: 101
-    Negative: 113
-  BoostSpeedKey: 304
-  SwitchOnKey: 102
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
