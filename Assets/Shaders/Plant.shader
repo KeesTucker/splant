@@ -322,13 +322,9 @@ Shader "Raymarch/Plant"
                         {
                             float3 grad;
                             sample_distance_with_grad(p, grad);
-                            float grad_len = length(grad);
-                            if (grad_len > 1e-4)
-                            {
-                                float3 normal = grad / grad_len;
-                                float fresnel = pow(1.0 - max(0.0, dot(normal, -ray_direction)), fresnel_pow);
-                                color += fresnel * fresnel_strength;
-                            }
+                            float3 normal = normalize(grad);
+                            float fresnel = pow(1.0 - max(0.0, dot(normal, -ray_direction)), fresnel_pow);
+                            color += fresnel * fresnel_strength;
                         }
                         
                         // naive distance fog
