@@ -267,7 +267,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 2, y: 3, z: 3}
+    m_Extent: {x: 3, y: 3, z: 3}
   mainCamera: {fileID: 963194227}
   compute: {fileID: 7200000, guid: 25f73fd93e8d2d94b95608eb3250b534, type: 3}
   sortCompute: {fileID: 7200000, guid: dd9e6c4b54e463c409512ef8efb72fbd, type: 3}
@@ -289,16 +289,20 @@ MonoBehaviour:
   cellRadius: 0.1
   minStepSize: 0.02001
   maxStepSize: 0.0667
-  surfaceThreshold: 0.887
-  fresnelPow: 3
-  fresnelStrength: 0.01
+  surfaceThreshold: 0.037
+  fresnelPow: 2.3
+  fresnelStrength: 0.1
   baseColour: {r: 0, g: 0.019607844, b: 0.001600317, a: 1}
+  debugSdfGrad: 0
+  sdfMaxDistance: 0.2
+  sdfMaxBricks: 32768
+  sdfSamplesPerBucket: 4
   sssColor: {r: 0.48707294, g: 0.5647059, b: 0, a: 1}
   sssStrength: 0.523
-  sssFalloff: 1.44
-  sssSteps: 12
-  sssStepSize: 0.194
-  sssSmoothingBand: 0.469
+  sssFalloff: 0.37
+  sssSteps: 50
+  sssStepSize: 1
+  sssSmoothingBand: 0.222
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

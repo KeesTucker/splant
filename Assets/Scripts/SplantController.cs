@@ -1,7 +1,9 @@
 using System.Runtime.InteropServices;
 using Structs;
 using UnityEngine;
+using UnityEngine.Rendering;
 using GPUSorting.Runtime;
+using UnityEngine.Experimental.Rendering;
 
 public class SplantController : MonoBehaviour
 {
@@ -9,6 +11,8 @@ public class SplantController : MonoBehaviour
     private int _applyBondForcesKernel;
     private int _applyCollisionForcesKernel;
     private int _buildBucketKernel;
+    private int _buildSdfBricksKernel;
+    private int _clearSdfIndexKernel;
     private int _buildSpatialKernel;
     private int _clearBucketsKernel;
     private int _compactCellsKernel;
@@ -47,6 +51,7 @@ public class SplantController : MonoBehaviour
     private static readonly int CompactCountID = Shader.PropertyToID("compact_count");
     private static readonly int DeltaTimeID = Shader.PropertyToID("delta_time");
     private static readonly int DampingID = Shader.PropertyToID("damping");
+    private static readonly int DebugGradID = Shader.PropertyToID("debug_grad");
     private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
     private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
     private static readonly int ForceBufferID = Shader.PropertyToID("force_buffer");
@@ -72,6 +77,17 @@ public class SplantController : MonoBehaviour
     private static readonly int SSSStepSizeID = Shader.PropertyToID("sss_step_size");
     private static readonly int SSSStepsID = Shader.PropertyToID("sss_steps");
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
+    private static readonly int SdfBrickAtlasID = Shader.PropertyToID("sdf_brick_atlas");
+    private static readonly int SdfBrickIndexID = Shader.PropertyToID("sdf_brick_index");
+    private static readonly int SdfBrickCounterID = Shader.PropertyToID("sdf_brick_counter");
+    private static readonly int SdfBrickDimID = Shader.PropertyToID("sdf_brick_dim");
+    private static readonly int SdfBucketDimID = Shader.PropertyToID("sdf_bucket_dim");
+    private static readonly int SdfBucketMinID = Shader.PropertyToID("sdf_bucket_min");
+    private static readonly int SdfAtlasBrickDimID = Shader.PropertyToID("sdf_atlas_brick_dim");
+    private static readonly int SdfMaxDistanceID = Shader.PropertyToID("sdf_max_distance");
+    private static readonly int SdfMaxBricksID = Shader.PropertyToID("sdf_max_bricks");
+    private static readonly int SdfSampleDimID = Shader.PropertyToID("sdf_sample_dim");
+    private static readonly int SdfSamplesPerBucketID = Shader.PropertyToID("sdf_samples_per_bucket");
     private static readonly int SurfaceThresholdID = Shader.PropertyToID("surface_threshold");
     private static readonly int TimeID = Shader.PropertyToID("time");
     private static readonly int VelocitiesID = Shader.PropertyToID("velocities");
@@ -121,6 +137,12 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float fresnelPow = 3f;
     [SerializeField] private float fresnelStrength = 0.15f;
     [SerializeField] private Color baseColour = new(0.2f, 0.9f, 0.5f, 1f);
+    [SerializeField] private bool debugSdfGrad;
+    
+    [Header("SDF Bricks")]
+    [SerializeField] private float sdfMaxDistance = 0.2f;
+    [SerializeField] private int sdfMaxBricks = 32768;
+    [SerializeField] private int sdfSamplesPerBucket = 2;
     
     [Header("SSS")] 
     [SerializeField] private Color sssColor = new(0.95f, 0.6f, 0.5f, 1f);
@@ -156,14 +178,28 @@ public class SplantController : MonoBehaviour
     private ComputeBuffer _temp1;
     private ComputeBuffer _temp2;
     private ComputeBuffer _temp3;
+    private ComputeBuffer _sdfBrickCounter;
+    private RenderTexture _sdfBrickAtlas;
+    private RenderTexture _sdfBrickIndex;
+    
+    private Vector3Int _sdfBucketDim;
+    private Vector3Int _sdfBucketMin;
+    private Vector3Int _sdfSampleDim;
+    private Vector3Int _sdfBrickDim;
+    private Vector3Int _sdfAtlasBrickDim;
+    private Vector3Int _sdfAtlasTexDim;
+    private int _sdfMaxBricksApplied;
     
     private DeviceRadixSort _deviceRadixSort;
     private int _frameCount;
+
+    private const int SdfBrickSize = 8;
 
     private void Awake()
     {
         FindKernels();
         InitBuffers();
+        InitSdfBricks();
         InitRadixSort();
     }
 
@@ -173,6 +209,8 @@ public class SplantController : MonoBehaviour
         _applyBondForcesKernel = compute.FindKernel("apply_bond_forces");
         _applyCollisionForcesKernel = compute.FindKernel("apply_collision_forces");
         _buildBucketKernel = compute.FindKernel("build_bucket_ranges");
+        _buildSdfBricksKernel = compute.FindKernel("build_sdf_bricks");
+        _clearSdfIndexKernel = compute.FindKernel("clear_sdf_index");
         _buildSpatialKernel = compute.FindKernel("build_spatial_hash");
         _clearBucketsKernel = compute.FindKernel("clear_buckets");
         _compactCellsKernel = compute.FindKernel("compact_cells");
@@ -188,6 +226,11 @@ public class SplantController : MonoBehaviour
 
     private void InitBuffers()
     {
+        if (_cellComputeArgs != null)
+        {
+            ReleaseBuffers();
+        }
+
         var cellStride = Marshal.SizeOf<Cell>();
         var maxBonds = (int)maxCells * (int)maxBondsPerCell;
 
@@ -237,6 +280,8 @@ public class SplantController : MonoBehaviour
         compute.SetInt(MaxBondsId, maxBonds);
         compute.SetBuffer(_initBondsKernel, BondCellsID, _bondCells);
         compute.SetBuffer(_initBondsKernel, BondRestID, _bondRest);
+        compute.SetBuffer(_initBondsKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_initBondsKernel, IndirectArgsID, _cellComputeArgs);
         var bondGroups = Mathf.CeilToInt(maxBonds / 64f);
         compute.Dispatch(_initBondsKernel, bondGroups, 1, 1);
     }
@@ -252,6 +297,7 @@ public class SplantController : MonoBehaviour
 
     private void Start()
     {
+        EnsureBuffers();
         SetParams();
         SetComputeBuffers();
         SetRaymarchBuffers();
@@ -274,7 +320,17 @@ public class SplantController : MonoBehaviour
             bucketTableSize = 1 << 18;
         }
         
+        sdfMaxDistance = Mathf.Max(0f, sdfMaxDistance);
+        sdfMaxBricks = Mathf.Max(1, sdfMaxBricks);
+        sdfSamplesPerBucket = Mathf.Max(1, sdfSamplesPerBucket);
+        InitSdfBricks();
         SetParams();
+        if (Application.isPlaying)
+        {
+            EnsureBuffers();
+            SetComputeBuffers();
+            SetRaymarchBuffers();
+        }
     }
 
     private void OnDestroy()
@@ -284,6 +340,8 @@ public class SplantController : MonoBehaviour
 
     private void Update()
     {
+        EnsureBuffers();
+        
         // Set time
         compute.SetFloat(DeltaTimeID, Time.deltaTime);
         compute.SetFloat(TimeID, Time.time);
@@ -330,6 +388,12 @@ public class SplantController : MonoBehaviour
         // Build bucket ranges
         compute.DispatchIndirect(_buildBucketKernel, _cellComputeArgs);
         
+        // Clear SDF indices + counter
+        ClearSdfIndex();
+
+        // Build SDF bricks
+        DispatchSdfBricks();
+        
         // Bonds
         compute.DispatchIndirect(_addBondsKernel, _cellComputeArgs);
         
@@ -372,10 +436,19 @@ public class SplantController : MonoBehaviour
         compute.SetInt(MaxCellsID, (int)maxCells);
         compute.SetVector(MaxPosID, bounds.max);
         compute.SetVector(MinPosID, bounds.min);
+        compute.SetFloat(SdfMaxDistanceID, sdfMaxDistance);
+        compute.SetInt(SdfMaxBricksID, Mathf.Max(1, _sdfMaxBricksApplied));
+        compute.SetInts(SdfBucketDimID, _sdfBucketDim.x, _sdfBucketDim.y, _sdfBucketDim.z);
+        compute.SetInts(SdfBucketMinID, _sdfBucketMin.x, _sdfBucketMin.y, _sdfBucketMin.z);
+        compute.SetInts(SdfSampleDimID, _sdfSampleDim.x, _sdfSampleDim.y, _sdfSampleDim.z);
+        compute.SetInts(SdfBrickDimID, _sdfBrickDim.x, _sdfBrickDim.y, _sdfBrickDim.z);
+        compute.SetInts(SdfAtlasBrickDimID, _sdfAtlasBrickDim.x, _sdfAtlasBrickDim.y, _sdfAtlasBrickDim.z);
+        compute.SetInt(SdfSamplesPerBucketID, Mathf.Max(1, sdfSamplesPerBucket));
         
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
         raymarchMaterial.SetFloat(CellRadiusSqID, cellRadius * cellRadius);
+        raymarchMaterial.SetFloat(DebugGradID, debugSdfGrad ? 1f : 0f);
         raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
         raymarchMaterial.SetFloat(FresnelStrengthID, fresnelStrength);
         raymarchMaterial.SetFloat(InvCellRadiusSqID, 1 / (cellRadius * cellRadius));
@@ -394,10 +467,20 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetVector(BoundsMaxId, bounds.max);
         raymarchMaterial.SetVector(BoundsMinId, bounds.min);
         raymarchMaterial.SetVector(SSSColorID, sssColor);
+        raymarchMaterial.SetFloat(SdfMaxDistanceID, sdfMaxDistance);
+        raymarchMaterial.SetVector(SdfBucketMinID, (Vector3)_sdfBucketMin);
+        raymarchMaterial.SetVector(SdfSampleDimID, (Vector3)_sdfSampleDim);
+        raymarchMaterial.SetVector(SdfAtlasBrickDimID, (Vector3)_sdfAtlasBrickDim);
+        raymarchMaterial.SetFloat(SdfSamplesPerBucketID, Mathf.Max(1, sdfSamplesPerBucket));
     }
     
     private void SetComputeBuffers()
     {
+        if (_cellComputeArgs == null)
+        {
+            return;
+        }
+
         compute.SetBuffer(_prepareIndirectArgsKernel, IndirectArgsID, _cellComputeArgs);
         compute.SetBuffer(_prepareIndirectArgsKernel, CellCountID, _cellCount);
 
@@ -405,6 +488,7 @@ public class SplantController : MonoBehaviour
         SetApplyBondForcesKernelBuffers();
         SetApplyCollisionForcesKernelBuffers();
         SetBuildBucketKernelBuffers();
+        SetBuildSdfKernelBuffers();
         SetBuildSpatialKernelBuffers();
         SetClearBucketsKernelBuffers();
         SetGrowKernelBuffers();
@@ -490,6 +574,26 @@ public class SplantController : MonoBehaviour
         compute.SetBuffer(_buildSpatialKernel, CellsID, _cells);
     }
 
+    private void SetBuildSdfKernelBuffers()
+    {
+        if (_sdfBrickAtlas == null || _sdfBrickIndex == null || _sdfBrickCounter == null)
+        {
+            return;
+        }
+
+        compute.SetTexture(_buildSdfBricksKernel, SdfBrickAtlasID, _sdfBrickAtlas);
+        compute.SetTexture(_buildSdfBricksKernel, SdfBrickIndexID, _sdfBrickIndex);
+        compute.SetBuffer(_buildSdfBricksKernel, SdfBrickCounterID, _sdfBrickCounter);
+        compute.SetBuffer(_buildSdfBricksKernel, BucketCheckId, _bucketCheck);
+        compute.SetBuffer(_buildSdfBricksKernel, BucketEndID, _bucketEnd);
+        compute.SetBuffer(_buildSdfBricksKernel, BucketStartID, _bucketStart);
+        compute.SetBuffer(_buildSdfBricksKernel, CellFullHashID, _cellFullHashes);
+        compute.SetBuffer(_buildSdfBricksKernel, CellIndicesID, _cellIndices);
+        compute.SetBuffer(_buildSdfBricksKernel, CellsID, _cells);
+
+        compute.SetTexture(_clearSdfIndexKernel, SdfBrickIndexID, _sdfBrickIndex);
+    }
+
     private void SetClearBucketsKernelBuffers()
     {
         compute.SetBuffer(_clearBucketsKernel, BucketCheckId, _bucketCheck);
@@ -520,31 +624,63 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetBuffer(CellFullHashID, _cellFullHashes);
         raymarchMaterial.SetBuffer(CellIndicesID, _cellIndices);
         raymarchMaterial.SetBuffer(CellsID, _cells);
+        if (_sdfBrickAtlas != null)
+        {
+            raymarchMaterial.SetTexture(SdfBrickAtlasID, _sdfBrickAtlas);
+            if (_sdfBrickIndex != null)
+            {
+                raymarchMaterial.SetTexture(SdfBrickIndexID, _sdfBrickIndex);
+            }
+        }
     }
 
     private void ReleaseBuffers()
     {
         _bondCells?.Release();
+        _bondCells = null;
         _bondRest?.Release();
+        _bondRest = null;
         _bucketCheck?.Release();
+        _bucketCheck = null;
         _bucketEnd?.Release();
+        _bucketEnd = null;
         _bucketStart?.Release();
+        _bucketStart = null;
         _cellComputeArgs?.Release();
+        _cellComputeArgs = null;
         _cellCount?.Release();
+        _cellCount = null;
         _cellFullHashes?.Release();
+        _cellFullHashes = null;
         _cellIndices?.Release();
+        _cellIndices = null;
         _cellRemap?.Release();
+        _cellRemap = null;
         _cellTableKeys?.Release();
+        _cellTableKeys = null;
         _cells?.Release();
+        _cells = null;
         _cellsTemp?.Release();
+        _cellsTemp = null;
         _compactCount?.Release();
+        _compactCount = null;
         _forceBuffer?.Release();
+        _forceBuffer = null;
         _velocities?.Release();
+        _velocities = null;
         _velocitiesTemp?.Release();
+        _velocitiesTemp = null;
         _temp0?.Release();
+        _temp0 = null;
         _temp1?.Release();
+        _temp1 = null;
         _temp2?.Release();
+        _temp2 = null;
         _temp3?.Release();
+        _temp3 = null;
+        _sdfBrickCounter?.Release();
+        _sdfBrickCounter = null;
+        ReleaseSdfTextures(!Application.isPlaying);
     }
     
     private void CompactCells()
@@ -567,4 +703,183 @@ public class SplantController : MonoBehaviour
         // Pass 4: Update cell_count
         compute.Dispatch(_finalizeCompactKernel, 1, 1, 1);
     }
+
+    private void InitSdfBricks()
+    {
+        if (bucketSize <= 1e-6f)
+        {
+            _sdfBucketMin = Vector3Int.zero;
+            _sdfBucketDim = Vector3Int.one;
+            _sdfSampleDim = Vector3Int.one;
+            _sdfBrickDim = Vector3Int.one;
+            _sdfAtlasBrickDim = Vector3Int.one;
+            _sdfAtlasTexDim = Vector3Int.one;
+            _sdfMaxBricksApplied = 1;
+            return;
+        }
+
+        var min = bounds.min;
+        var max = bounds.max;
+        _sdfBucketMin = new Vector3Int(
+            Mathf.FloorToInt(min.x / bucketSize),
+            Mathf.FloorToInt(min.y / bucketSize),
+            Mathf.FloorToInt(min.z / bucketSize)
+        );
+        var bucketMax = new Vector3Int(
+            Mathf.FloorToInt(max.x / bucketSize),
+            Mathf.FloorToInt(max.y / bucketSize),
+            Mathf.FloorToInt(max.z / bucketSize)
+        );
+        _sdfBucketDim = new Vector3Int(
+            Mathf.Max(1, bucketMax.x - _sdfBucketMin.x + 1),
+            Mathf.Max(1, bucketMax.y - _sdfBucketMin.y + 1),
+            Mathf.Max(1, bucketMax.z - _sdfBucketMin.z + 1)
+        );
+        var samples = Mathf.Max(1, sdfSamplesPerBucket);
+        var samplesPow2 = Mathf.NextPowerOfTwo(samples);
+        sdfSamplesPerBucket = samplesPow2;
+        _sdfSampleDim = _sdfBucketDim * samplesPow2 + Vector3Int.one;
+        _sdfBrickDim = new Vector3Int(
+            Mathf.CeilToInt(_sdfSampleDim.x / (float)SdfBrickSize),
+            Mathf.CeilToInt(_sdfSampleDim.y / (float)SdfBrickSize),
+            Mathf.CeilToInt(_sdfSampleDim.z / (float)SdfBrickSize)
+        );
+
+        var maxPossibleBricks = _sdfBrickDim.x * _sdfBrickDim.y * _sdfBrickDim.z;
+        var targetBricks = Mathf.Clamp(sdfMaxBricks, 1, maxPossibleBricks);
+        _sdfMaxBricksApplied = targetBricks;
+        var side = Mathf.CeilToInt(Mathf.Pow(targetBricks, 1f / 3f));
+        var depth = Mathf.CeilToInt(targetBricks / (float)(side * side));
+        _sdfAtlasBrickDim = new Vector3Int(side, side, Mathf.Max(1, depth));
+        _sdfAtlasTexDim = _sdfAtlasBrickDim * SdfBrickSize;
+
+        if (!Application.isPlaying)
+        {
+            ReleaseSdfTextures(true);
+            _sdfBrickCounter?.Release();
+            _sdfBrickCounter = null;
+            return;
+        }
+
+        if (_sdfBrickAtlas != null &&
+            _sdfBrickAtlas.width == _sdfAtlasTexDim.x &&
+            _sdfBrickAtlas.height == _sdfAtlasTexDim.y &&
+            _sdfBrickAtlas.volumeDepth == _sdfAtlasTexDim.z &&
+            _sdfBrickIndex != null &&
+            _sdfBrickIndex.width == _sdfBrickDim.x &&
+            _sdfBrickIndex.height == _sdfBrickDim.y &&
+            _sdfBrickIndex.volumeDepth == _sdfBrickDim.z &&
+            _sdfBrickCounter != null)
+        {
+            return;
+        }
+
+        ReleaseSdfTextures(false);
+        _sdfBrickCounter?.Release();
+        _sdfBrickCounter = null;
+
+        var atlasDesc = new RenderTextureDescriptor(_sdfAtlasTexDim.x, _sdfAtlasTexDim.y, GraphicsFormat.R8_UNorm, 0)
+        {
+            dimension = TextureDimension.Tex3D,
+            volumeDepth = _sdfAtlasTexDim.z,
+            enableRandomWrite = true
+        };
+        _sdfBrickAtlas = new RenderTexture(atlasDesc)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        _sdfBrickAtlas.Create();
+
+        var indexDesc = new RenderTextureDescriptor(_sdfBrickDim.x, _sdfBrickDim.y, GraphicsFormat.R32_UInt, 0)
+        {
+            dimension = TextureDimension.Tex3D,
+            volumeDepth = _sdfBrickDim.z,
+            enableRandomWrite = true
+        };
+        _sdfBrickIndex = new RenderTexture(indexDesc)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        _sdfBrickIndex.Create();
+
+        _sdfBrickCounter = new ComputeBuffer(1, sizeof(uint));
+    }
+
+    private void DispatchSdfBricks()
+    {
+        if (_sdfBrickAtlas == null || _sdfBrickIndex == null || _sdfBrickCounter == null)
+        {
+            return;
+        }
+
+        var groupsX = _sdfBrickDim.x;
+        var groupsY = _sdfBrickDim.y;
+        var groupsZ = _sdfBrickDim.z;
+        compute.Dispatch(_buildSdfBricksKernel, groupsX, groupsY, groupsZ);
+    }
+
+    private void ClearSdfIndex()
+    {
+        if (_sdfBrickIndex == null || _sdfBrickCounter == null)
+        {
+            return;
+        }
+
+        _sdfBrickCounter.SetData(new[] { 0u });
+        var groupsX = Mathf.CeilToInt(_sdfBrickDim.x / 4f);
+        var groupsY = Mathf.CeilToInt(_sdfBrickDim.y / 4f);
+        var groupsZ = Mathf.CeilToInt(_sdfBrickDim.z / 4f);
+        compute.Dispatch(_clearSdfIndexKernel, groupsX, groupsY, groupsZ);
+    }
+
+    private void ReleaseSdfTextures(bool immediate)
+    {
+        if (_sdfBrickAtlas != null)
+        {
+            _sdfBrickAtlas.Release();
+            if (immediate)
+            {
+                DestroyImmediate(_sdfBrickAtlas);
+            }
+            else
+            {
+                Destroy(_sdfBrickAtlas);
+            }
+            _sdfBrickAtlas = null;
+        }
+        if (_sdfBrickIndex != null)
+        {
+            _sdfBrickIndex.Release();
+            if (immediate)
+            {
+                DestroyImmediate(_sdfBrickIndex);
+            }
+            else
+            {
+                Destroy(_sdfBrickIndex);
+            }
+            _sdfBrickIndex = null;
+        }
+    }
+
+    private void EnsureBuffers()
+    {
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
+        if (_cellComputeArgs != null)
+        {
+            return;
+        }
+
+        InitBuffers();
+        InitSdfBricks();
+        SetComputeBuffers();
+        SetRaymarchBuffers();
+    }
+
 }

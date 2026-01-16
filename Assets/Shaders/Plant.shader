@@ -31,21 +31,30 @@ Shader "Raymarch/Plant"
             float inv_cell_radius_sq;
             float max_step_size;
             float min_step_size;
+            float debug_grad;
             float sss_smoothing_band;
             float sss_falloff;
             float sss_step_size;
             float sss_strength;
             float surface_threshold;
+            float sdf_max_distance;
             float3 bounds_max;
             float3 bounds_min;
             float3 camera_pos;
             float3 light_dir;
             float3 sss_color;
+            float3 sdf_sample_dim;
+            float3 sdf_bucket_min;
+            float3 sdf_atlas_brick_dim;
             float4 base_color;
             float4x4 inv_view_proj;
             uint bucket_table_size;
             uint max_steps;
             uint sss_steps;
+            float sdf_samples_per_bucket;
+            
+            Texture3D<float> sdf_brick_atlas;
+            Texture3D<uint> sdf_brick_index;
             
             StructuredBuffer<cell> cells;
             StructuredBuffer<uint> bucket_end;
@@ -148,6 +157,106 @@ Shader "Raymarch/Plant"
                             }
                         }
                 return density;
+            }
+
+            float decode_sdf(float encoded)
+            {
+                return encoded * (2.0 * sdf_max_distance) - sdf_max_distance;
+            }
+
+            float sample_sdf_texel(int3 sample_coord)
+            {
+                int3 max_coord = (int3)sdf_sample_dim - 1;
+                sample_coord = clamp(sample_coord, int3(0, 0, 0), max_coord);
+                
+                int3 brick_coord = sample_coord / 8;
+                int3 local_coord = sample_coord - brick_coord * 8;
+                uint brick_index = sdf_brick_index.Load(int4(brick_coord, 0));
+                if (brick_index == 0)
+                {
+                    return sdf_max_distance;
+                }
+                int3 atlas_brick_coord = index_to_coord_3d(brick_index - 1, (uint3)sdf_atlas_brick_dim);
+                int3 atlas_coord = atlas_brick_coord * 8 + local_coord;
+                float encoded = sdf_brick_atlas.Load(int4(atlas_coord, 0));
+                return decode_sdf(encoded);
+            }
+
+            float sample_distance(float3 world_pos)
+            {
+                if (world_pos.x < bounds_min.x || world_pos.y < bounds_min.y || world_pos.z < bounds_min.z ||
+                    world_pos.x > bounds_max.x || world_pos.y > bounds_max.y || world_pos.z > bounds_max.z)
+                {
+                    return sdf_max_distance;
+                }
+
+                float3 grid_pos = ((world_pos / bucket_size) - sdf_bucket_min) * sdf_samples_per_bucket;
+                float3 base_f = floor(grid_pos);
+                float3 t = saturate(grid_pos - base_f);
+
+                int3 base_coord = (int3)base_f;
+                int3 next_coord = min(base_coord + 1, (int3)sdf_sample_dim - 1);
+
+                float d000 = sample_sdf_texel(int3(base_coord.x, base_coord.y, base_coord.z));
+                float d100 = sample_sdf_texel(int3(next_coord.x, base_coord.y, base_coord.z));
+                float d010 = sample_sdf_texel(int3(base_coord.x, next_coord.y, base_coord.z));
+                float d110 = sample_sdf_texel(int3(next_coord.x, next_coord.y, base_coord.z));
+                float d001 = sample_sdf_texel(int3(base_coord.x, base_coord.y, next_coord.z));
+                float d101 = sample_sdf_texel(int3(next_coord.x, base_coord.y, next_coord.z));
+                float d011 = sample_sdf_texel(int3(base_coord.x, next_coord.y, next_coord.z));
+                float d111 = sample_sdf_texel(int3(next_coord.x, next_coord.y, next_coord.z));
+
+                float d00 = lerp(d000, d100, t.x);
+                float d10 = lerp(d010, d110, t.x);
+                float d01 = lerp(d001, d101, t.x);
+                float d11 = lerp(d011, d111, t.x);
+                float d0 = lerp(d00, d10, t.y);
+                float d1 = lerp(d01, d11, t.y);
+                return lerp(d0, d1, t.z);
+            }
+
+            float sample_distance_with_grad(float3 world_pos, out float3 grad)
+            {
+                if (world_pos.x < bounds_min.x || world_pos.y < bounds_min.y || world_pos.z < bounds_min.z ||
+                    world_pos.x > bounds_max.x || world_pos.y > bounds_max.y || world_pos.z > bounds_max.z)
+                {
+                    grad = float3(0, 0, 0);
+                    return sdf_max_distance;
+                }
+
+                float3 grid_pos = ((world_pos / bucket_size) - sdf_bucket_min) * sdf_samples_per_bucket;
+                int3 max_base = (int3)sdf_sample_dim - 2;
+                int3 base_coord = clamp((int3)floor(grid_pos), int3(0, 0, 0), max_base);
+                float3 t = saturate(grid_pos - (float3)base_coord);
+                int3 next_coord = base_coord + 1;
+
+                float d000 = sample_sdf_texel(int3(base_coord.x, base_coord.y, base_coord.z));
+                float d100 = sample_sdf_texel(int3(next_coord.x, base_coord.y, base_coord.z));
+                float d010 = sample_sdf_texel(int3(base_coord.x, next_coord.y, base_coord.z));
+                float d110 = sample_sdf_texel(int3(next_coord.x, next_coord.y, base_coord.z));
+                float d001 = sample_sdf_texel(int3(base_coord.x, base_coord.y, next_coord.z));
+                float d101 = sample_sdf_texel(int3(next_coord.x, base_coord.y, next_coord.z));
+                float d011 = sample_sdf_texel(int3(base_coord.x, next_coord.y, next_coord.z));
+                float d111 = sample_sdf_texel(int3(next_coord.x, next_coord.y, next_coord.z));
+
+                float d00 = lerp(d000, d100, t.x);
+                float d10 = lerp(d010, d110, t.x);
+                float d01 = lerp(d001, d101, t.x);
+                float d11 = lerp(d011, d111, t.x);
+                float d0 = lerp(d00, d10, t.y);
+                float d1 = lerp(d01, d11, t.y);
+                float d = lerp(d0, d1, t.z);
+
+                float ddx = lerp(lerp(d100 - d000, d110 - d010, t.y),
+                                 lerp(d101 - d001, d111 - d011, t.y), t.z);
+                float ddy = lerp(lerp(d010 - d000, d110 - d100, t.x),
+                                 lerp(d011 - d001, d111 - d101, t.x), t.z);
+                float ddz = lerp(lerp(d001 - d000, d101 - d100, t.x),
+                                 lerp(d011 - d010, d111 - d110, t.x), t.y);
+
+                float sample_size = bucket_size / max(sdf_samples_per_bucket, 1.0);
+                grad = float3(ddx, ddy, ddz) / max(sample_size, 1e-6);
+                return d;
             }
 
             // smooth fast density sampling for sss
@@ -324,16 +433,11 @@ Shader "Raymarch/Plant"
                 {
                     float step = lerp(0, sss_step_size, float(i + 1) / float(sss_steps + 1));
                     dist += step;
+                    
+                    float3 pos = start + dist * dir;
 
-                    // Per-step jitter in [-0.5, 0.5]
-                    float j = random(base_seed ^ (uint)i * 83492791u) - 0.5;
-
-                    // apply jitter to smooth out any jank
-                    float jitter_dist = j * sss_step_size * 0.05;
-
-                    float3 pos = start + (dist + jitter_dist) * dir;
-
-                    float density = sample_density_fast_smooth(pos);
+                    float distance = sample_distance(pos);
+                    float density = saturate(1.0 - distance / cell_radius);
                     optical_depth += density;
 
                     if (optical_depth * sss_falloff > 6.0) break;
@@ -379,6 +483,24 @@ Shader "Raymarch/Plant"
 
                 float dist = max(dist_enter, 0.0);
                 float dist_max = dist_exit;
+
+                if (debug_grad > 0.5)
+                {
+                    float gmax = 0.0;
+                    float t = dist;
+                    int debug_steps = min(max_steps, 64);
+                    for (int i = 0; i < debug_steps; i++)
+                    {
+                        if (t > dist_max) break;
+                        float3 p_debug = ray_origin + ray_direction * t;
+                        float3 grad_debug;
+                        float d_debug = sample_distance_with_grad(p_debug, grad_debug);
+                        gmax = max(gmax, length(grad_debug));
+                        t += max(min_step_size, abs(d_debug));
+                    }
+                    float g = saturate(gmax * 0.2);
+                    return float4(g, g, g, 1);
+                }
                 
                 for (int i = 0; i < max_steps; i++)
                 {
@@ -386,10 +508,10 @@ Shader "Raymarch/Plant"
                     if (dist > dist_max) break;
                     
                     float3 p = ray_origin + ray_direction * dist;
-                    float density = sample_density(p);
+                    float distance = sample_distance(p);
                     
                     // surface hit, refine with binary search
-                    if (density > surface_threshold)
+                    if (distance <= surface_threshold)
                     {
                         // back up slightly
                         float dist_near = dist - max_step_size;
@@ -400,9 +522,9 @@ Shader "Raymarch/Plant"
                         {
                             float t_mid = (dist_near + dist_far) * 0.5;
                             float3 p_mid = ray_origin + ray_direction * t_mid;
-                            float density_mid = sample_density(p_mid);
+                            float distance_mid = sample_distance(p_mid);
                             
-                            if (density_mid > surface_threshold)
+                            if (distance_mid <= surface_threshold)
                                 dist_far = t_mid;
                             else
                                 dist_near = t_mid;
@@ -424,10 +546,14 @@ Shader "Raymarch/Plant"
                         if (FRESNEL_ENABLED)
                         {
                             float3 grad;
-                            sample_density_with_grad(p, grad);
-                            float3 normal = normalize(-grad);
-                            float fresnel = pow(1.0 - max(0.0, dot(normal, -ray_direction)), fresnel_pow);
-                            color += fresnel * fresnel_strength;
+                            sample_distance_with_grad(p, grad);
+                            float grad_len = length(grad);
+                            if (grad_len > 1e-4)
+                            {
+                                float3 normal = grad / grad_len;
+                                float fresnel = pow(1.0 - max(0.0, dot(normal, -ray_direction)), fresnel_pow);
+                                color += fresnel * fresnel_strength;
+                            }
                         }
                         
                         // naive distance fog
@@ -437,7 +563,7 @@ Shader "Raymarch/Plant"
                     }
                     
                     // adaptive step with minimum and maximum bounds, 0.8 multiplier seems to be conservative enough
-                    float step = clamp(abs(surface_threshold - density) * 0.8, min_step_size, max_step_size);
+                    float step = clamp(abs(distance) * 0.8, min_step_size, max_step_size);
                     dist += step;
                 }
 

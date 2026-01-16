@@ -75,3 +75,12 @@ int3 index_to_coord_3d(uint index, uint dimensions)
     coord.z = index / (dimensions * dimensions);
     return coord;
 }
+
+int3 index_to_coord_3d(uint index, uint3 dimensions)
+{
+    int3 coord;
+    coord.x = index % dimensions.x;
+    coord.y = (index / dimensions.x) % dimensions.y;
+    coord.z = index / (dimensions.x * dimensions.y);
+    return coord;
+}

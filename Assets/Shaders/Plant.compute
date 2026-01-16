@@ -14,6 +14,9 @@ RWStructuredBuffer<uint> cell_count; // [0] = alive cell count
 RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
 RWStructuredBuffer<uint> cell_indices;
 RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
+RWTexture3D<float> sdf_brick_atlas;
+RWTexture3D<uint> sdf_brick_index;
+RWStructuredBuffer<uint> sdf_brick_counter;
 
 float bond_bend_stiffness;
 float bond_linear_stiffness;
@@ -33,6 +36,14 @@ int max_bonds_per_cell;
 uint bucket_table_size;
 uint max_bonds;
 uint max_cells;
+float sdf_max_distance;
+uint3 sdf_bucket_dim;
+uint3 sdf_sample_dim;
+uint3 sdf_brick_dim;
+uint3 sdf_atlas_brick_dim;
+int3 sdf_bucket_min;
+uint sdf_max_bricks;
+uint sdf_samples_per_bucket;
 
 uint active_count()
 {
@@ -332,6 +343,7 @@ void apply_collision_forces(uint id : SV_DispatchThreadID)
     uint count = active_count();
     if (id >= count) return;
     if (bucket_size <= 1e-6) return;
+    if (neighbor_radius <= 1e-6) return;
 
     cell c = cells[id];
     
@@ -465,6 +477,11 @@ void resolve_force_buffer(uint id : SV_DispatchThreadID)
         asfloat(force_buffer[base_index + 2])
     );
 
+    if (any(force != force))
+    {
+        force = float3(0, 0, 0);
+    }
+
     // Clear buffer for next frame.
     force_buffer[base_index] = 0;
     force_buffer[base_index + 1] = 0;
@@ -477,6 +494,10 @@ void resolve_force_buffer(uint id : SV_DispatchThreadID)
     float3 v = velocities[id];
     v += accel * delta_time;
     v *= exp(-damping * delta_time);
+    if (any(v != v))
+    {
+        v = float3(0, 0, 0);
+    }
     c.position += v * delta_time;
     float3 clamped = clamp(c.position, min_pos + cell_radius, max_pos - cell_radius);
     if (any(c.position != clamped))
@@ -501,6 +522,8 @@ void init_bonds(uint id : SV_DispatchThreadID)
 }
 
 #pragma kernel add_bonds
+#pragma kernel build_sdf_bricks
+#pragma kernel clear_sdf_index
 
 // assymetric bonds :(
 [numthreads(64, 1, 1)]
@@ -576,4 +599,125 @@ void add_bonds(uint id : SV_DispatchThreadID)
     }
     
     
+}
+
+[numthreads(4, 4, 4)]
+void clear_sdf_index(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= sdf_brick_dim.x || id.y >= sdf_brick_dim.y || id.z >= sdf_brick_dim.z)
+        return;
+    sdf_brick_index[id] = 0;
+}
+
+groupshared uint g_has_data;
+groupshared uint g_brick_index;
+groupshared float g_samples[512];
+
+[numthreads(8, 8, 8)]
+void build_sdf_bricks(uint3 id : SV_DispatchThreadID, uint3 group_id : SV_GroupID, uint3 group_thread_id : SV_GroupThreadID)
+{
+    if (group_id.x >= sdf_brick_dim.x || group_id.y >= sdf_brick_dim.y || group_id.z >= sdf_brick_dim.z)
+        return;
+
+    if (group_thread_id.x == 0 && group_thread_id.y == 0 && group_thread_id.z == 0)
+    {
+        g_has_data = 0;
+        g_brick_index = 0xffffffff;
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    float encoded_max = 1.0;
+    float encoded = encoded_max;
+
+    if (bucket_size > 1e-6 && sdf_max_distance > 1e-6 && sdf_samples_per_bucket > 0)
+    {
+        int3 sample_coord = (int3)(group_id * 8 + group_thread_id);
+        if (sample_coord.x < (int)sdf_sample_dim.x &&
+            sample_coord.y < (int)sdf_sample_dim.y &&
+            sample_coord.z < (int)sdf_sample_dim.z)
+        {
+            float3 sample_bucket_pos = (float3)sample_coord / (float)sdf_samples_per_bucket;
+            int3 base_bucket_coord = sdf_bucket_min + (int3)floor(sample_bucket_pos);
+            float3 p = (float3)sdf_bucket_min * bucket_size + sample_bucket_pos * bucket_size;
+
+            float min_dist = sdf_max_distance;
+
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int3 bucket_coord = base_bucket_coord + int3(dx, dy, dz);
+                        int3 local_coord = bucket_coord - sdf_bucket_min;
+                        if (local_coord.x < 0 || local_coord.y < 0 || local_coord.z < 0 ||
+                            local_coord.x >= (int)sdf_bucket_dim.x ||
+                            local_coord.y >= (int)sdf_bucket_dim.y ||
+                            local_coord.z >= (int)sdf_bucket_dim.z)
+                        {
+                            continue;
+                        }
+
+                        uint hash = fast_hash_coord(bucket_coord);
+                        uint bucket = hash & (bucket_table_size - 1);
+                        if (!bucket_check[bucket])
+                            continue;
+
+                        uint start = bucket_start[bucket];
+                        uint end = bucket_end[bucket];
+                        if (start == 0xffffffff || start >= end) continue;
+
+                        for (uint i = start; i < end; i++)
+                        {
+                            uint idx = cell_indices[i];
+                            if (cell_full_hash[idx] != hash || cells[idx].age < 0) continue;
+
+                            float3 diff = p - cells[idx].position;
+                            float dist = length(diff) - cell_radius;
+                            min_dist = min(min_dist, dist);
+                        }
+                    }
+
+            encoded = saturate((min_dist + sdf_max_distance) / (2.0 * sdf_max_distance));
+            if (encoded < encoded_max)
+            {
+                InterlockedOr(g_has_data, 1);
+            }
+        }
+    }
+
+    uint local_index = group_thread_id.x + group_thread_id.y * 8 + group_thread_id.z * 64;
+    g_samples[local_index] = encoded;
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if (group_thread_id.x == 0 && group_thread_id.y == 0 && group_thread_id.z == 0)
+    {
+        if (g_has_data != 0)
+        {
+            uint idx;
+            InterlockedAdd(sdf_brick_counter[0], 1, idx);
+            if (idx < sdf_max_bricks)
+            {
+                g_brick_index = idx;
+                sdf_brick_index[group_id] = idx + 1;
+            }
+            else
+            {
+                g_brick_index = 0xffffffff;
+                sdf_brick_index[group_id] = 0;
+            }
+        }
+        else
+        {
+            sdf_brick_index[group_id] = 0;
+        }
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if (g_brick_index == 0xffffffff)
+        return;
+
+    int3 atlas_brick_coord = index_to_coord_3d(g_brick_index, sdf_atlas_brick_dim);
+    uint3 atlas_coord = (uint3)(atlas_brick_coord * 8 + (int3)group_thread_id);
+    sdf_brick_atlas[atlas_coord] = g_samples[local_index];
 }
