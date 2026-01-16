@@ -257,7 +257,7 @@ Shader "Raymarch/Plant"
                     float j = random(base_seed ^ (uint)i * 83492791u) - 0.5;
 
                     // apply jitter to smooth out any jank
-                    float jitter_dist = j * sss_step_size * 0.1;
+                    float jitter_dist = j * sss_step_size * 0.05;
 
                     float3 pos = start + (dist + jitter_dist) * dir;
 
@@ -377,6 +377,9 @@ Shader "Raymarch/Plant"
                             float fresnel = pow(1.0 - max(0.0, dot(normal, -ray_direction)), fresnel_pow);
                             color += fresnel * fresnel_strength;
                         }
+                        
+                        // naive distance fog
+                        //color *= 1 - saturate(dist * 0.2);
                         
                         return float4(color, 1);
                     }
