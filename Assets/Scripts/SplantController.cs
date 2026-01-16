@@ -46,8 +46,8 @@ public class SplantController : MonoBehaviour
     private static readonly int DeltaTimeID = Shader.PropertyToID("delta_time");
     private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
     private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
-    private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
-    private static readonly int InvCellRadiusSq = Shader.PropertyToID("inv_cell_radius_sq");
+    private static readonly int IndirectArgsID = Shader.PropertyToID("indirect_args");
+    private static readonly int InvCellRadiusSqID = Shader.PropertyToID("inv_cell_radius_sq");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
     private static readonly int LightDirID = Shader.PropertyToID("light_dir");
     private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
@@ -348,13 +348,14 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
         raymarchMaterial.SetFloat(CellRadiusSqID, cellRadius * cellRadius);
-        raymarchMaterial.SetFloat(InvCellRadiusSq, 1 / (cellRadius * cellRadius));
         raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
         raymarchMaterial.SetFloat(FresnelStrengthID, fresnelStrength);
+        raymarchMaterial.SetFloat(InvCellRadiusSqID, 1 / (cellRadius * cellRadius));
         raymarchMaterial.SetFloat(MaxStepSizeID, maxStepSize);
         raymarchMaterial.SetFloat(MinStepSizeID, minStepSize);
         raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
         raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
+        raymarchMaterial.SetFloat(SSSSmoothingBandID, sssSmoothingBand);
         raymarchMaterial.SetFloat(SSSStepSizeID, sssStepSize);
         raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
         raymarchMaterial.SetFloat(SurfaceThresholdID, surfaceThreshold);
@@ -369,7 +370,7 @@ public class SplantController : MonoBehaviour
     
     private void SetComputeBuffers()
     {
-        compute.SetBuffer(_prepareIndirectArgsKernel, IndirectArgsId, _cellComputeArgs);
+        compute.SetBuffer(_prepareIndirectArgsKernel, IndirectArgsID, _cellComputeArgs);
         compute.SetBuffer(_prepareIndirectArgsKernel, CellCountID, _cellCount);
 
         SetCellKernalBuffers(_addBondsKernel);
@@ -431,6 +432,7 @@ public class SplantController : MonoBehaviour
     private void ReleaseBuffers()
     {
         _bonds?.Release();
+        _bucketCheck?.Release();
         _bucketEnd?.Release();
         _bucketStart?.Release();
         _cellComputeArgs?.Release();

@@ -3,8 +3,6 @@ Shader "Raymarch/Plant"
     SubShader
     {
         Tags { "RenderType"="Opaque" "Queue"="Overlay" }
-        ZWrite Off
-        ZTest Always
         Cull Off
 
         Pass

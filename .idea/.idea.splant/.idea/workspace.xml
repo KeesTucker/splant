@@ -5,15 +5,18 @@
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Helpers.hlsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Plant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Plant.compute" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/ProjectSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/ProjectSettings.asset" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ChangesViewManager">
+    <option name="groupingKeys">
+      <option value="directory" />
+      <option value="repository" />
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
@@ -143,7 +146,7 @@
       <workItem from="1768416992002" duration="4589000" />
       <workItem from="1768459685862" duration="9176000" />
       <workItem from="1768502427555" duration="6031000" />
-      <workItem from="1768516853998" duration="6226000" />
+      <workItem from="1768516853998" duration="9110000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
@@ -321,7 +324,23 @@
       <option name="project" value="LOCAL" />
       <updated>1768468912872</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="feat: optimize sss using a faster density sampling technique">
+      <option name="closed" value="true" />
+      <created>1768523250869</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1768523250869</updated>
+    </task>
+    <task id="LOCAL-00024" summary="feat: optimize sss using a faster density sampling technique. apply jitter to sss to help mitigate faster sampling artifacts.">
+      <option name="closed" value="true" />
+      <created>1768523297517</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1768523297517</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -348,7 +367,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3" />
     <MESSAGE value="feat: Big cleanup and I have started implementing spatial hashing. Not complete but I just finished radix sorting the hashes. Still need to generate bucket ranges." />
     <MESSAGE value="fix: We are back on spacial hashing, added some fixes to stop it crashing due to unintialized buffers and out of order ops. Clamped positions within bounding box." />
     <MESSAGE value="feat: fixed bucketing bug where I wasn't sorting by the masked hash. corrected other small issues" />
@@ -372,7 +390,9 @@
     <MESSAGE value="fix: optimize density sampling to only check buckets in range, removed dodgy free cam script. few other misc tweaks I can't remember" />
     <MESSAGE value="feat: small inv sq cell radius optimation + better freecam" />
     <MESSAGE value="feat: early exit sss optimization" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: early exit sss optimization" />
+    <MESSAGE value="feat: optimize sss using a faster density sampling technique" />
+    <MESSAGE value="feat: optimize sss using a faster density sampling technique. apply jitter to sss to help mitigate faster sampling artifacts." />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: optimize sss using a faster density sampling technique. apply jitter to sss to help mitigate faster sampling artifacts." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
