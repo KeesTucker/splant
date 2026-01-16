@@ -35,6 +35,11 @@ float neighbor_radius;
 float neighbor_radius_sq;
 float repulsion_strength;
 float time;
+float wind_frequency;
+float wind_speed;
+float wind_strength;
+float wind_variation;
+float3 wind_direction;
 float3 bounds_max;
 float3 bounds_min;
 int max_bonds_per_cell;
@@ -53,6 +58,24 @@ uint sdf_samples_per_bucket;
 float encode_sdf(float dist)
 {
     return saturate((dist + sdf_max_distance) / (2.0 * sdf_max_distance));
+}
+
+float3 wind_force(float3 position)
+{
+    if (wind_strength <= 1e-6)
+        return float3(0, 0, 0);
+
+    float3 dir = safe_normalize(wind_direction);
+    float3 phase = position * wind_frequency + time * wind_speed;
+    float base_wave = sin(phase.x + phase.y + phase.z);
+    float3 cross_wave = float3(
+        sin(phase.y * 1.7 + phase.z * 0.9),
+        sin(phase.z * 1.3 + phase.x * 1.1),
+        sin(phase.x * 1.5 + phase.y * 0.7)
+    );
+
+    float3 wind = dir * base_wave + cross_wave * wind_variation;
+    return wind * wind_strength;
 }
 
 uint active_count()
@@ -478,7 +501,7 @@ void resolve_force_buffer(uint id : SV_DispatchThreadID)
     cell c = cells[id];
     if (c.age < 0) return;
 
-    float3 accel = force + gravity;
+    float3 accel = force + gravity + wind_force(c.position);
     float3 v = velocities[id];
     v += accel * delta_time;
     v *= exp(-damping * delta_time);

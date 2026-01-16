@@ -94,6 +94,11 @@ public class SplantController : MonoBehaviour
     private static readonly int TimeID = Shader.PropertyToID("time");
     private static readonly int VelocitiesID = Shader.PropertyToID("velocities");
     private static readonly int VelocitiesTempID = Shader.PropertyToID("velocities_temp");
+    private static readonly int WindDirectionID = Shader.PropertyToID("wind_direction");
+    private static readonly int WindFrequencyID = Shader.PropertyToID("wind_frequency");
+    private static readonly int WindSpeedID = Shader.PropertyToID("wind_speed");
+    private static readonly int WindStrengthID = Shader.PropertyToID("wind_strength");
+    private static readonly int WindVariationID = Shader.PropertyToID("wind_variation");
     
     [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
     [SerializeField] private Camera mainCamera;
@@ -117,6 +122,13 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float repulsionStrength = 1f;
     [SerializeField] private float damping = 1.5f;
     [SerializeField] private Vector3 gravity = new(0f, -0.25f, 0f);
+
+    [Header("Wind")]
+    [SerializeField] private Vector3 windDirection = new(1f, 0f, 0f);
+    [SerializeField] private float windStrength = 0.2f;
+    [SerializeField] private float windFrequency = 0.15f;
+    [SerializeField] private float windSpeed = 0.8f;
+    [SerializeField] private float windVariation = 0.35f;
     
     [Header("Bonds")] 
     [Tooltip("Must be <= 0.5x bucketSize")]
@@ -312,6 +324,10 @@ public class SplantController : MonoBehaviour
         minStepSize = Mathf.Clamp(minStepSize, 0, bucketSize * 0.5f);
         neighborCollisionRadius = Mathf.Clamp(neighborCollisionRadius, 0, bucketSize * 0.5f);
         damping = Mathf.Max(0f, damping);
+        windStrength = Mathf.Max(0f, windStrength);
+        windFrequency = Mathf.Max(0f, windFrequency);
+        windSpeed = Mathf.Max(0f, windSpeed);
+        windVariation = Mathf.Max(0f, windVariation);
         
         // ensure bucket table size is a power of 2 (has exactly 1 bit)
         if (!(bucketTableSize > 0 && (bucketTableSize & (bucketTableSize - 1)) == 0))
@@ -480,6 +496,11 @@ public class SplantController : MonoBehaviour
         compute.SetFloat(NeighborRadiusID, neighborCollisionRadius);
         compute.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
         compute.SetFloat(RepulsionStrengthID, repulsionStrength);
+        compute.SetVector(WindDirectionID, windDirection);
+        compute.SetFloat(WindStrengthID, windStrength);
+        compute.SetFloat(WindFrequencyID, windFrequency);
+        compute.SetFloat(WindSpeedID, windSpeed);
+        compute.SetFloat(WindVariationID, windVariation);
         compute.SetInt(BucketTableSizeID, bucketTableSize);
         compute.SetInt(MaxBondsId, (int)maxCells * (int)maxBondsPerCell);
         compute.SetInt(MaxBondsPerCellID, (int)maxBondsPerCell);

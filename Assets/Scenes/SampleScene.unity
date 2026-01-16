@@ -281,6 +281,11 @@ MonoBehaviour:
   repulsionStrength: 0
   damping: 3
   gravity: {x: 0, y: 0, z: 0}
+  windDirection: {x: 1, y: 0, z: 0}
+  windStrength: 0.1
+  windFrequency: 0.5
+  windSpeed: 0.2
+  windVariation: 2.6
   bondRange: 0.1
   bondLinearStiffness: 100
   bondBendStiffness: 1
@@ -302,7 +307,6 @@ MonoBehaviour:
   sssFalloff: 0.37
   sssSteps: 50
   sssStepSize: 1
-  sssSmoothingBand: 0.222
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
