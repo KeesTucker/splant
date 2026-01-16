@@ -81,9 +81,8 @@ void prepare_indirect_args(uint3 id : SV_DispatchThreadID)
 
 bool should_split(cell c, uint id, float time)
 {
-    float r = random(id + (uint)(time * 1000));
-    float agePenalty = exp(-c.age * 0.5); // Rapid dropoff
-    return r < 0.05 * agePenalty;
+    const float split_age = 0.02;
+    return c.age >= split_age && (c.age - delta_time) < split_age;
 }
 
 bool should_die(cell c, uint id, float time)
@@ -97,13 +96,16 @@ cell make_child(cell parent, uint id)
 {
     cell child;
     child.age = 0;
-    float3 offset = float3(
+    float3 dir = safe_normalize(parent.polarity);
+    float3 jitter = float3(
         random(id * 44317) - 0.5,
         random(id * 3231) - 0.5,
         random(id * 432457) - 0.5
     );
-    child.position = parent.position + offset * 0.1;
-    child.polarity = safe_normalize(offset); // TODO: should inherit parent's polarity + random noise
+    dir = safe_normalize(dir + jitter * 0.2);
+    float spacing = sqrt(bond_range_sq) * 0.9;
+    child.position = parent.position + dir * spacing;
+    child.polarity = dir;
     return child;
 }
 

@@ -278,27 +278,27 @@ MonoBehaviour:
   bucketSize: 0.2
   bucketTableSize: 262144
   neighborCollisionRadius: 0.1
-  repulsionStrength: 10
-  damping: 1.5
-  gravity: {x: 0, y: -0.5, z: 0}
+  repulsionStrength: 0
+  damping: 3
+  gravity: {x: 0, y: 0, z: 0}
   bondRange: 0.1
-  bondLinearStiffness: 5
+  bondLinearStiffness: 100
   bondBendStiffness: 1
-  maxBondsPerCell: 4
+  maxBondsPerCell: 1
   maxSteps: 200
-  cellRadius: 0.08
+  cellRadius: 0.1
   minStepSize: 0.02001
   maxStepSize: 0.0667
-  surfaceThreshold: 0.5
+  surfaceThreshold: 0.887
   fresnelPow: 3
-  fresnelStrength: 0.1
-  baseColour: {r: 0.0013477072, g: 0.01886791, b: 0, a: 1}
+  fresnelStrength: 0.01
+  baseColour: {r: 0, g: 0.019607844, b: 0.001600317, a: 1}
   sssColor: {r: 0.48707294, g: 0.5647059, b: 0, a: 1}
-  sssStrength: 0.8
-  sssFalloff: 0.25
-  sssSteps: 14
-  sssStepSize: 0.5
-  sssSmoothingBand: 0.1
+  sssStrength: 0.523
+  sssFalloff: 1.44
+  sssSteps: 12
+  sssStepSize: 0.194
+  sssSmoothingBand: 0.469
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
