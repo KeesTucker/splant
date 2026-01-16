@@ -1,12 +1,14 @@
-﻿using UnityEngine;
+using System.Runtime.InteropServices;
+using UnityEngine;
 
 namespace Structs
 {
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public struct Bond
     {
-        private uint _cellA;
-        private uint _cellB;
-        private float _restDistance;
-        private Vector3 _restDir; 
+        public float restDistance;
+        public Vector3 restDir;
+        public uint cellA;
+        public uint cellB;
     }
 }

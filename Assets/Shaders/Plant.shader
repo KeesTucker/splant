@@ -14,7 +14,7 @@ Shader "Raymarch/Plant"
             #include "Cell.hlsl"
             #include "Helpers.hlsl"
             
-            #define FRESNEL_ENABLED 0
+            #define FRESNEL_ENABLED 1
 
             struct vs_out
             {
@@ -94,6 +94,12 @@ Shader "Raymarch/Plant"
 
             float sample_density(float3 p)
             {
+                if (p.x < bounds_min.x || p.y < bounds_min.y || p.z < bounds_min.z ||
+                    p.x > bounds_max.x || p.y > bounds_max.y || p.z > bounds_max.z)
+                {
+                    return 0.0;
+                }
+
                 float density = 0.0;
                 
                 // early out if bucket_check is falsey, bucket_check is truthy only if there are cells present in any
@@ -149,6 +155,12 @@ Shader "Raymarch/Plant"
             // this avoids hard bucket seams while staying much cheaper than full neighbor searches
             float sample_density_fast_smooth(float3 world_pos)
             {
+                if (world_pos.x < bounds_min.x || world_pos.y < bounds_min.y || world_pos.z < bounds_min.z ||
+                    world_pos.x > bounds_max.x || world_pos.y > bounds_max.y || world_pos.z > bounds_max.z)
+                {
+                    return 0.0;
+                }
+
                 float accumulated_density = 0.0;
 
                 // convert world position into bucket space
@@ -237,6 +249,66 @@ Shader "Raymarch/Plant"
                 return accumulated_density;
             }
 
+            float sample_density_with_grad(float3 p, out float3 grad)
+            {
+                grad = float3(0, 0, 0);
+                if (p.x < bounds_min.x || p.y < bounds_min.y || p.z < bounds_min.z ||
+                    p.x > bounds_max.x || p.y > bounds_max.y || p.z > bounds_max.z)
+                {
+                    return 0.0;
+                }
+
+                float density = 0.0;
+
+                int3 bucket_coord = floor(p / bucket_size);
+                uint hash = fast_hash_coord(bucket_coord);
+                uint bucket = hash & (bucket_table_size - 1);
+                if (!bucket_check[bucket])
+                {
+                    return 0.0;
+                }
+
+                float3 local_pos = frac(p / bucket_size);
+                float edge_threshold = cell_radius / bucket_size;
+                int dx_range = (local_pos.x < edge_threshold || local_pos.x > 1.0 - edge_threshold) ? 1 : 0;
+                int dy_range = (local_pos.y < edge_threshold || local_pos.y > 1.0 - edge_threshold) ? 1 : 0;
+                int dz_range = (local_pos.z < edge_threshold || local_pos.z > 1.0 - edge_threshold) ? 1 : 0;
+
+                for (int dx = -dx_range; dx <= dx_range; dx++)
+                    for (int dy = -dy_range; dy <= dy_range; dy++)
+                        for (int dz = -dz_range; dz <= dz_range; dz++)
+                        {
+                            int3 check_coord = bucket_coord + int3(dx, dy, dz);
+                            hash = fast_hash_coord(check_coord);
+                            bucket = hash & (bucket_table_size - 1);
+                            uint start = bucket_start[bucket];
+                            uint end = bucket_end[bucket];
+                            
+                            if (start == 0xffffffff || start >= end) continue;
+                            for (uint i = start; i < end; i++)
+                            {
+                                uint idx = cell_indices[i];
+                                if (cell_full_hash[idx] != hash || cells[idx].age < 0) continue;
+                                
+                                float3 cell_pos = cells[idx].position;
+                                float3 diff = p - cell_pos;
+                                float dist_sq = dot(diff, diff);
+                                
+                                if (dist_sq >= cell_radius_sq) continue;
+                                
+                                float ratio = dist_sq * inv_cell_radius_sq;
+                                float influence = 1.0 - smooth_step(ratio);
+                                density += influence;
+
+                                float d = -6.0 * ratio * (1.0 - ratio);
+                                float grad_scale = d * inv_cell_radius_sq * 2.0;
+                                grad += diff * grad_scale;
+                            }
+                        }
+
+                return density;
+            }
+
             // SSS using fast sampling
             float optical_depth_along_ray(float3 start, float3 dir, float2 uv)
             {
@@ -270,27 +342,6 @@ Shader "Raymarch/Plant"
                 return optical_depth;
             }
 
-            // tetrahedral normals
-            float3 calc_normal(float3 p, float eps)
-            {
-                // tetrahedral offsets
-                float2 e = float2(1, -1) * eps;
-                
-                // sample density at 4 tetrahedral points
-                float d1 = sample_density_fast_smooth(p + e.xyy);
-                float d2 = sample_density_fast_smooth(p + e.yyx);
-                float d3 = sample_density_fast_smooth(p + e.yxy);
-                float d4 = sample_density_fast_smooth(p + e.xxx);
-                
-                // compute gradient and negate it (density increases inward, normals point outward)
-                float3 grad = -(e.xyy * d1 +
-                                e.yyx * d2 +
-                                e.yxy * d3 +
-                                e.xxx * d4);
-                
-                return normalize(grad);
-            }
-            
             float3 get_ray_dir_for_uv(float2 uv)
             {
                 // -1 -> 1 across the screen on x & y
@@ -372,8 +423,9 @@ Shader "Raymarch/Plant"
                         // fresnel rim light
                         if (FRESNEL_ENABLED)
                         {
-                            float epsilon = cell_radius * 0.05;
-                            float3 normal = calc_normal(p, epsilon);
+                            float3 grad;
+                            sample_density_with_grad(p, grad);
+                            float3 normal = normalize(-grad);
                             float fresnel = pow(1.0 - max(0.0, dot(normal, -ray_direction)), fresnel_pow);
                             color += fresnel * fresnel_strength;
                         }

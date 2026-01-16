@@ -2,8 +2,11 @@
 #include "Cell.hlsl"
 #include "Helpers.hlsl"
 
-RWStructuredBuffer<bond> bonds;
+RWStructuredBuffer<uint2> bond_cells;
+RWStructuredBuffer<float4> bond_rest; // xyz = rest_dir, w = rest_distance
 RWStructuredBuffer<cell> cells;
+RWStructuredBuffer<uint> force_buffer; // 3 uints per cell (x,y,z)
+RWStructuredBuffer<float3> velocities;
 RWStructuredBuffer<uint> bucket_check;
 RWStructuredBuffer<uint> bucket_end;
 RWStructuredBuffer<uint> bucket_start;
@@ -18,6 +21,8 @@ float bond_range_sq;
 float bucket_size;
 float cell_radius;
 float delta_time;
+float damping;
+float3 gravity;
 float neighbor_radius;
 float neighbor_radius_sq;
 float repulsion_strength;
@@ -29,6 +34,37 @@ uint bucket_table_size;
 uint max_bonds;
 uint max_cells;
 
+uint active_count()
+{
+    return min(cell_count[0], max_cells);
+}
+
+void AddInterlockedFloat(RWStructuredBuffer<uint> buffer, uint index, float value)
+{
+    uint expected = buffer[index];
+    uint original;
+
+    while (true)
+    {
+        float current = asfloat(expected);
+        uint desired = asuint(current + value);
+        InterlockedCompareExchange(buffer[index], expected, desired, original);
+        if (original == expected)
+        {
+            return;
+        }
+        expected = original;
+    }
+}
+
+void AddForce(uint id, float3 force)
+{
+    uint base_index = id * 3;
+    AddInterlockedFloat(force_buffer, base_index, force.x);
+    AddInterlockedFloat(force_buffer, base_index + 1, force.y);
+    AddInterlockedFloat(force_buffer, base_index + 2, force.z);
+}
+
 #pragma kernel prepare_indirect_args
 
 RWStructuredBuffer<uint> indirect_args; // { threadGroupsX, threadGroupsY, threadGroupsZ }
@@ -36,7 +72,8 @@ RWStructuredBuffer<uint> indirect_args; // { threadGroupsX, threadGroupsY, threa
 [numthreads(1, 1, 1)]
 void prepare_indirect_args(uint3 id : SV_DispatchThreadID)
 {
-    uint count = cell_count[0];
+    uint count = active_count();
+    cell_count[0] = count;
     indirect_args[0] = (count + 63) / 64;
     indirect_args[1] = 1;
     indirect_args[2] = 1;
@@ -65,7 +102,7 @@ cell make_child(cell parent, uint id)
         random(id * 3231) - 0.5,
         random(id * 432457) - 0.5
     );
-    child.position = parent.position + offset * 0.5;
+    child.position = parent.position + offset * 0.1;
     child.polarity = safe_normalize(offset); // TODO: should inherit parent's polarity + random noise
     return child;
 }
@@ -75,7 +112,8 @@ cell make_child(cell parent, uint id)
 [numthreads(64, 1, 1)]
 void grow(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
     
     cell c = cells[id];
     
@@ -98,7 +136,7 @@ void grow(uint id : SV_DispatchThreadID)
     cells[id] = c;
     
     // Try to split
-    if (should_split(c, id, time) && cell_count[0] < max_cells * 0.95)
+    if (should_split(c, id, time) && count < max_cells * 0.95)
     {
         uint child_idx;
         InterlockedAdd(cell_count[0], 1, child_idx);
@@ -109,6 +147,7 @@ void grow(uint id : SV_DispatchThreadID)
         {
             cell child = make_child(c, id);
             cells[child_idx] = child;
+            velocities[child_idx] = float3(0, 0, 0);
         }
     }
 }
@@ -121,7 +160,8 @@ RWStructuredBuffer<uint> cell_remap;    // old index -> new index mapping
 [numthreads(64, 1, 1)]
 void compact_cells(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
     
     cell c = cells[id];
     
@@ -141,17 +181,20 @@ void compact_cells(uint id : SV_DispatchThreadID)
 #pragma kernel write_compacted
 
 RWStructuredBuffer<cell> cells_temp;
+RWStructuredBuffer<float3> velocities_temp;
 
 [numthreads(64, 1, 1)]
 void write_compacted(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
     
     uint new_idx = cell_remap[id];
     
     if (new_idx != 0xffffffff)
     {
         cells_temp[new_idx] = cells[id];
+        velocities_temp[new_idx] = velocities[id];
     }
 }
 
@@ -167,30 +210,27 @@ void remap_bonds(uint id : SV_DispatchThreadID)
     
     for (uint i = bond_start; i < bond_end; i++)
     {
-        bond b = bonds[i];
+        uint2 cells_pair = bond_cells[i];
+        uint cell_a = cells_pair.x;
         
         // Skip invalid bonds
-        if (b.cell_a == 0xffffffff) break;
+        if (cell_a == 0xffffffff) break;
         
         // Get new indices for both cells
-        uint new_a = cell_remap[b.cell_a];
-        uint new_b = cell_remap[b.cell_b];
+        uint new_a = cell_remap[cell_a];
+        uint new_b = cell_remap[cells_pair.y];
         
         // If either cell was deleted, invalidate the bond
         if (new_a == 0xffffffff || new_b == 0xffffffff)
         {
-            b.cell_a = 0xffffffff;
-            b.cell_b = 0xffffffff;
-            b.rest_distance = 0;
+            bond_cells[i] = uint2(0xffffffff, 0xffffffff);
+            bond_rest[i] = float4(0, 0, 0, 0);
         }
         else
         {
             // Update to new indices
-            b.cell_a = new_a;
-            b.cell_b = new_b;
+            bond_cells[i] = uint2(new_a, new_b);
         }
-        
-        bonds[i] = b;
     }
 }
 
@@ -201,6 +241,7 @@ void copy_back(uint id : SV_DispatchThreadID)
 {
     if (id >= compact_count[0]) return;
     cells[id] = cells_temp[id];
+    velocities[id] = velocities_temp[id];
 }
 
 #pragma kernel finalize_compact
@@ -228,7 +269,9 @@ void clear_buckets(uint id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void build_spatial_hash(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
+    if (bucket_size <= 1e-6) return;
     
     cell c = cells[id];
     
@@ -259,11 +302,12 @@ void build_spatial_hash(uint id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void build_bucket_ranges(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
 
     uint key = cell_table_keys[id];
     uint prev_key = id > 0 ? cell_table_keys[id - 1] : 0xffffffff;
-    uint next_key = (id < cell_count[0] - 1) ? cell_table_keys[id + 1] : 0xffffffff;
+    uint next_key = (id < count - 1) ? cell_table_keys[id + 1] : 0xffffffff;
 
     // First element of this bucket
     if (id == 0 || key != prev_key)
@@ -272,7 +316,7 @@ void build_bucket_ranges(uint id : SV_DispatchThreadID)
     }
     
     // Last element of this bucket (exclusive end)
-    if (id == cell_count[0] - 1 || key != next_key)
+    if (id == count - 1 || key != next_key)
     {
         bucket_end[key] = id + 1; // exclusive end
     }
@@ -283,7 +327,9 @@ void build_bucket_ranges(uint id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void apply_collision_forces(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
+    if (bucket_size <= 1e-6) return;
 
     cell c = cells[id];
     
@@ -293,7 +339,7 @@ void apply_collision_forces(uint id : SV_DispatchThreadID)
     // Spatial hash repulsion
     int3 base_bucket = floor(c.position / bucket_size);
 
-    uint alive_count = cell_count[0];
+    uint alive_count = count;
     
     float3 accel = float3(0, 0, 0);
     
@@ -342,10 +388,7 @@ void apply_collision_forces(uint id : SV_DispatchThreadID)
                 }
             }
     
-    // Integrate
-    c.position += accel * delta_time;
-    c.position = clamp(c.position, min_pos, max_pos);
-    cells[id] = c;
+    AddForce(id, accel);
 }
 
 #pragma kernel apply_bond_forces
@@ -353,22 +396,25 @@ void apply_collision_forces(uint id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void apply_bond_forces(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
     
     cell c = cells[id];
     if (c.age < 0) return;
-    
-    float3 force = float3(0, 0, 0);
     
     uint bond_start = id * max_bonds_per_cell;
     uint bond_end   = min(bond_start + max_bonds_per_cell, max_bonds);
     
     for (uint i = bond_start; i < bond_end; i++)
     {
-        bond b = bonds[i];
-        if (b.cell_a == 0xffffffff) break; // invalid bond
+        uint2 cells_pair = bond_cells[i];
+        uint cell_a = cells_pair.x;
+        if (cell_a == 0xffffffff) break; // invalid bond
+        if (cell_a != id) continue;
         
-        cell other = cells[b.cell_b];
+        uint cell_b = cells_pair.y;
+        if (cell_b >= count) continue;
+        cell other = cells[cell_b];
         if (other.age < 0) continue;
         
         float3 delta = other.position - c.position;
@@ -380,12 +426,13 @@ void apply_bond_forces(uint id : SV_DispatchThreadID)
         float3 dir = delta * inv_dist;   // current bond direction
 
         // Linear stiffness
-        float diff = dist - b.rest_distance;
-        force += dir * (diff * bond_linear_stiffness);
+        float4 rest = bond_rest[i];
+        float diff = dist - rest.w;
+        float3 bond_force = dir * (diff * bond_linear_stiffness);
 
         // Rotational stiffness
         // angular error axis (≈ sin(theta) * axis)
-        float3 axis = cross(dir, b.rest_dir);
+        float3 axis = cross(dir, rest.xyz);
 
         // convert angular error → lateral force
         float3 rot_force = cross(axis, dir);
@@ -394,11 +441,49 @@ void apply_bond_forces(uint id : SV_DispatchThreadID)
         float angular_damp = 0.1;
         rot_force -= angular_damp * axis;
 
-        force += rot_force * bond_bend_stiffness;
+        bond_force += rot_force * bond_bend_stiffness;
+
+        AddForce(id, bond_force);
+        AddForce(cell_b, -bond_force);
     }
-    
-    c.position += force * delta_time;
-    c.position = clamp(c.position, min_pos, max_pos);
+}
+
+#pragma kernel resolve_force_buffer
+
+[numthreads(64, 1, 1)]
+void resolve_force_buffer(uint id : SV_DispatchThreadID)
+{
+    uint count = active_count();
+    if (id >= count) return;
+
+    uint base_index = id * 3;
+    float3 force = float3(
+        asfloat(force_buffer[base_index]),
+        asfloat(force_buffer[base_index + 1]),
+        asfloat(force_buffer[base_index + 2])
+    );
+
+    // Clear buffer for next frame.
+    force_buffer[base_index] = 0;
+    force_buffer[base_index + 1] = 0;
+    force_buffer[base_index + 2] = 0;
+
+    cell c = cells[id];
+    if (c.age < 0) return;
+
+    float3 accel = force + gravity;
+    float3 v = velocities[id];
+    v += accel * delta_time;
+    v *= exp(-damping * delta_time);
+    c.position += v * delta_time;
+    float3 clamped = clamp(c.position, min_pos + cell_radius, max_pos - cell_radius);
+    if (any(c.position != clamped))
+    {
+        float3 hit = step(clamped + 1e-6, c.position) + step(c.position, clamped - 1e-6);
+        v *= 1.0 - hit;
+        c.position = clamped;
+    }
+    velocities[id] = v;
     cells[id] = c;
 }
 
@@ -409,12 +494,8 @@ void init_bonds(uint id : SV_DispatchThreadID)
 {
     if (id >= max_bonds) return;
     
-    bond invalid;
-    invalid.cell_a = 0xffffffff;
-    invalid.cell_b = 0xffffffff;
-    invalid.rest_distance = 0;
-    invalid.rest_dir = float3(0, 0, 0);
-    bonds[id] = invalid;
+    bond_cells[id] = uint2(0xffffffff, 0xffffffff);
+    bond_rest[id] = float4(0, 0, 0, 0);
 }
 
 #pragma kernel add_bonds
@@ -423,7 +504,9 @@ void init_bonds(uint id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void add_bonds(uint id : SV_DispatchThreadID)
 {
-    if (id >= cell_count[0]) return;
+    uint count = active_count();
+    if (id >= count) return;
+    if (bucket_size <= 1e-6) return;
     
     cell c = cells[id];
     
@@ -432,7 +515,7 @@ void add_bonds(uint id : SV_DispatchThreadID)
     
     int3 base_bucket = floor(c.position / bucket_size);
     
-    uint alive_count = cell_count[0];
+    uint alive_count = count;
     
     int num_bonds_generated = 0;
     uint bond_start_id = id * max_bonds_per_cell;
@@ -453,7 +536,7 @@ void add_bonds(uint id : SV_DispatchThreadID)
 
         for (uint i = start; i < end; i++)
         {
-            if (bonds[bond_start_id + num_bonds_generated].cell_a != 0xffffffff) continue;
+            if (bond_cells[bond_start_id + num_bonds_generated].x != 0xffffffff) continue;
             if (i >= alive_count) continue;
                     
             // Verify full hash
@@ -475,15 +558,11 @@ void add_bonds(uint id : SV_DispatchThreadID)
             if (dist_sq > bond_range_sq || dist_sq < 1e-6)
                 continue;
             
-            bond b;
-            b.cell_a = id;
-            b.cell_b = other_id;
             float inv_dist = rsqrt(dist_sq);
-            b.rest_distance = dist_sq * inv_dist;
             float3 dir = delta * inv_dist;
-            b.rest_dir = dir;
-                    
-            bonds[bond_start_id + num_bonds_generated] = b;
+            uint write_index = bond_start_id + num_bonds_generated;
+            bond_cells[write_index] = uint2(id, other_id);
+            bond_rest[write_index] = float4(dir, dist_sq * inv_dist);
                     
             num_bonds_generated++;
             

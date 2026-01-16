@@ -3,6 +3,11 @@
   <component name="ChangeListManager">
     <list default="true" id="7a37eb4e-59e3-4853-82c5-a7a092d6a59d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.splant/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/SampleScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/SplantController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Structs/Bond.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/Structs/Cell.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Shaders/Plant.compute" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Plant.compute" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Shaders/Plant.shader" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -145,6 +150,7 @@
       <workItem from="1768459685862" duration="9176000" />
       <workItem from="1768502427555" duration="6031000" />
       <workItem from="1768516853998" duration="10350000" />
+      <workItem from="1768533027722" duration="3874000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Implemented radix sort for proper z sorting and translucency rendering. Had to switch to Unity 2023.1 to get wavy shaders for radix. Couldn't work out how to enable it in 6.3">
       <option name="closed" value="true" />
