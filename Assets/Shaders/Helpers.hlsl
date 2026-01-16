@@ -13,6 +13,19 @@
     int3(-1,1,1), int3(-1,1,-1), int3(-1,-1,1), int3(-1,-1,-1)
 };
 
+static const int3 bucket_offsets_no_center[26] = {
+    int3(1,0,0), int3(-1,0,0),
+    int3(0,1,0), int3(0,-1,0),
+    int3(0,0,1), int3(0,0,-1),
+
+    int3(1,1,0), int3(1,-1,0), int3(-1,1,0), int3(-1,-1,0),
+    int3(1,0,1), int3(1,0,-1), int3(-1,0,1), int3(-1,0,-1),
+    int3(0,1,1), int3(0,1,-1), int3(0,-1,1), int3(0,-1,-1),
+
+    int3(1,1,1), int3(1,1,-1), int3(1,-1,1), int3(1,-1,-1),
+    int3(-1,1,1), int3(-1,1,-1), int3(-1,-1,1), int3(-1,-1,-1)
+};
+
 uint wang_hash(uint seed)
 {
     seed = (seed ^ 61) ^ (seed >> 16);
@@ -52,4 +65,13 @@ float smooth_step(float t)
 {
     // Smooth polynomial kernel (smoothstep(t) = 3t² - 2t³)
     return t * t * (3.0 - 2.0 * t);
+}
+
+int3 index_to_coord_3d(uint index, uint dimensions)
+{
+    int3 coord;
+    coord.x = index % dimensions;
+    coord.y = index / dimensions % dimensions;
+    coord.z = index / (dimensions * dimensions);
+    return coord;
 }

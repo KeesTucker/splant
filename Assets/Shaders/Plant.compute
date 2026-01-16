@@ -4,16 +4,19 @@
 
 RWStructuredBuffer<bond> bonds;
 RWStructuredBuffer<cell> cells;
+RWStructuredBuffer<uint> bucket_check;
 RWStructuredBuffer<uint> bucket_end;
 RWStructuredBuffer<uint> bucket_start;
 RWStructuredBuffer<uint> cell_count; // [0] = alive cell count
 RWStructuredBuffer<uint> cell_full_hash;  // full hash (verification)
 RWStructuredBuffer<uint> cell_indices;
 RWStructuredBuffer<uint> cell_table_keys; // masked hash (sort key)
-float bond_range_sq;
-float bond_linear_stiffness;
+
 float bond_bend_stiffness;
+float bond_linear_stiffness;
+float bond_range_sq;
 float bucket_size;
+float cell_radius;
 float delta_time;
 float neighbor_radius;
 float neighbor_radius_sq;
@@ -34,7 +37,7 @@ RWStructuredBuffer<uint> indirect_args; // { threadGroupsX, threadGroupsY, threa
 void prepare_indirect_args(uint3 id : SV_DispatchThreadID)
 {
     uint count = cell_count[0];
-    indirect_args[0] = (count + 255) / 256; // ceil divide by 256
+    indirect_args[0] = (count + 63) / 64;
     indirect_args[1] = 1;
     indirect_args[2] = 1;
 }
@@ -69,7 +72,7 @@ cell make_child(cell parent, uint id)
 
 #pragma kernel grow
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void grow(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
@@ -115,7 +118,7 @@ void grow(uint id : SV_DispatchThreadID)
 RWStructuredBuffer<uint> compact_count; // temp counter for compaction
 RWStructuredBuffer<uint> cell_remap;    // old index -> new index mapping
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void compact_cells(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
@@ -139,7 +142,7 @@ void compact_cells(uint id : SV_DispatchThreadID)
 
 RWStructuredBuffer<cell> cells_temp;
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void write_compacted(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
@@ -154,7 +157,7 @@ void write_compacted(uint id : SV_DispatchThreadID)
 
 #pragma kernel remap_bonds
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void remap_bonds(uint id : SV_DispatchThreadID)
 {
     if (id >= max_cells) return;
@@ -193,7 +196,7 @@ void remap_bonds(uint id : SV_DispatchThreadID)
 
 #pragma kernel copy_back
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void copy_back(uint id : SV_DispatchThreadID)
 {
     if (id >= compact_count[0]) return;
@@ -209,38 +212,51 @@ void finalize_compact(uint3 id : SV_DispatchThreadID)
     compact_count[0] = 0; // reset for next compaction
 }
 
+#pragma kernel clear_buckets
+
+[numthreads(64, 1, 1)]
+void clear_buckets(uint id : SV_DispatchThreadID)
+{
+    if (id >= bucket_table_size) return;
+    bucket_start[id] = 0xffffffff;
+    bucket_end[id] = 0;
+    bucket_check[id] = 0;
+}
+
 #pragma kernel build_spatial_hash
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void build_spatial_hash(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
     
     cell c = cells[id];
     
-    int3 bucket = floor(c.position / bucket_size);
-    uint full = fast_hash_coord(bucket);
-    uint table = full & (bucket_table_size - 1);
+    int3 bucket_coord = floor(c.position / bucket_size);
+    uint bucket_hash = fast_hash_coord(bucket_coord);
+    uint bucket_index = bucket_hash & (bucket_table_size - 1);
 
-    cell_full_hash[id] = full;
-    cell_table_keys[id] = table;
+    cell_full_hash[id] = bucket_hash;
+    cell_table_keys[id] = bucket_index;
     cell_indices[id] = id;
-}
-
-#pragma kernel clear_buckets
-
-[numthreads(256, 1, 1)]
-void clear_buckets(uint id : SV_DispatchThreadID)
-{
-    if (id >= bucket_table_size) return;
-    bucket_start[id] = 0xffffffff;
-    bucket_end[id] = 0;
+    
+    // each cell sets all buckets it could possibly influence to check = 1
+    // this is useful when stepping through the buckets for density sampling etc. as we can early-out very efficiently
+    bucket_check[bucket_index] = 1;
+    for (uint i = 0; i < 26; i++)
+    {
+        int3 influence_coord = bucket_coord + bucket_offsets_no_center[i];
+        bucket_hash = fast_hash_coord(influence_coord);
+        bucket_index = bucket_hash & (bucket_table_size - 1);
+        
+        bucket_check[bucket_index] = 1;
+    }
 }
 
 #pragma kernel build_bucket_ranges
 
 // ENSURE HASHES ARE SORTED WITH RADIX SORT BEFORE RUNNING BUILD BUCKET RANGES
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void build_bucket_ranges(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
@@ -264,7 +280,7 @@ void build_bucket_ranges(uint id : SV_DispatchThreadID)
 
 #pragma kernel apply_collision_forces
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void apply_collision_forces(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
@@ -334,7 +350,7 @@ void apply_collision_forces(uint id : SV_DispatchThreadID)
 
 #pragma kernel apply_bond_forces
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void apply_bond_forces(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
@@ -388,7 +404,7 @@ void apply_bond_forces(uint id : SV_DispatchThreadID)
 
 #pragma kernel init_bonds
 
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void init_bonds(uint id : SV_DispatchThreadID)
 {
     if (id >= max_bonds) return;
@@ -404,7 +420,7 @@ void init_bonds(uint id : SV_DispatchThreadID)
 #pragma kernel add_bonds
 
 // assymetric bonds :(
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void add_bonds(uint id : SV_DispatchThreadID)
 {
     if (id >= cell_count[0]) return;
