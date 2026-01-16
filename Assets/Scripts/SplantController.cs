@@ -27,6 +27,7 @@ public class SplantController : MonoBehaviour
     private static readonly int BondsID = Shader.PropertyToID("bonds");
     private static readonly int BoundsMaxId = Shader.PropertyToID("bounds_max");
     private static readonly int BoundsMinId = Shader.PropertyToID("bounds_min");
+    private static readonly int BucketCheckId = Shader.PropertyToID("bucket_check");
     private static readonly int BucketEndID = Shader.PropertyToID("bucket_end");
     private static readonly int BucketSizeID = Shader.PropertyToID("bucket_size");
     private static readonly int BucketStartID = Shader.PropertyToID("bucket_start");
@@ -46,8 +47,8 @@ public class SplantController : MonoBehaviour
     private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
     private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
     private static readonly int IndirectArgsId = Shader.PropertyToID("indirect_args");
-    private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
     private static readonly int InvCellRadiusSq = Shader.PropertyToID("inv_cell_radius_sq");
+    private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
     private static readonly int LightDirID = Shader.PropertyToID("light_dir");
     private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
     private static readonly int MaxBondsPerCellID = Shader.PropertyToID("max_bonds_per_cell");
@@ -62,7 +63,7 @@ public class SplantController : MonoBehaviour
     private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
     private static readonly int SSSColorID = Shader.PropertyToID("sss_color");
     private static readonly int SSSFalloffID = Shader.PropertyToID("sss_falloff");
-    private static readonly int SSSStartPosID = Shader.PropertyToID("sss_start_pos");
+    private static readonly int SSSSmoothingBandID = Shader.PropertyToID("sss_smoothing_band");
     private static readonly int SSSStepSizeID = Shader.PropertyToID("sss_step_size");
     private static readonly int SSSStepsID = Shader.PropertyToID("sss_steps");
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
@@ -81,18 +82,17 @@ public class SplantController : MonoBehaviour
     [SerializeField] private int compactEveryNFrames = 60;
     
     [Header("Spatial Hashing")]
-    [Tooltip("Must be >= neighborRadius, should be 1.5x or more")]
     [SerializeField] private float bucketSize = 0.1f;
     [Tooltip("Must be a power of 2")]
     [SerializeField] private int bucketTableSize = 1 << 18;
     
     [Header("Physics")] 
-    [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
+    [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float neighborCollisionRadius = 0.5f;
     [SerializeField] private float repulsionStrength = 1f;
     
     [Header("Bonds")] 
-    [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
+    [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float bondRange = 0.05f;
     [SerializeField] private float bondLinearStiffness = 1f;
     [SerializeField] private float bondBendStiffness = 1f;
@@ -101,11 +101,11 @@ public class SplantController : MonoBehaviour
     [Header("Rendering")]
     [Range(1, 512)] 
     [SerializeField] private int maxSteps = 256;
-    [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
+    [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float cellRadius = 0.05f;
-    [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
+    [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float minStepSize = 0.02f;
-    [Tooltip("Must be <= bucketSize, should be 0.667x or more")]
+    [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float maxStepSize = 0.0667f;
     [Range(0.001f, 1f)]
     [SerializeField] private float surfaceThreshold = 0.5f;
@@ -119,14 +119,15 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float sssStrength = 0.6f;
     [Range(0.1f, 20f)]
     [SerializeField] private float sssFalloff = 1.5f;
-    [Range(-2f, 2f)] 
-    [SerializeField] private float sssStartPos;
     [Range(1, 50)] 
     [SerializeField] private int sssSteps = 12;
     [Range(0.001f, 1f)] 
     [SerializeField] private float sssStepSize = 0.02f;
+    [Range(0.001f, 1f)] 
+    [SerializeField] private float sssSmoothingBand = 0.2f;
     
     private ComputeBuffer _bonds;
+    private ComputeBuffer _bucketCheck;
     private ComputeBuffer _bucketEnd;
     private ComputeBuffer _bucketStart;
     private ComputeBuffer _cellComputeArgs;
@@ -177,6 +178,7 @@ public class SplantController : MonoBehaviour
         var bondStride = Marshal.SizeOf<Bond>();  
         
         _bonds = new ComputeBuffer((int)maxCells * (int)maxBondsPerCell, bondStride); // this is probs overkill but can reduce with testing
+        _bucketCheck = new ComputeBuffer(bucketTableSize, sizeof(uint));
         _bucketEnd = new ComputeBuffer(bucketTableSize, sizeof(uint));
         _bucketStart = new ComputeBuffer(bucketTableSize, sizeof(uint));
         _cellComputeArgs = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
@@ -234,11 +236,11 @@ public class SplantController : MonoBehaviour
     private void OnValidate()
     {
         // enforce bucket size constrained vars
-        bondRange = Mathf.Clamp(bondRange, 0, bucketSize * 0.667f);
-        cellRadius = Mathf.Clamp(cellRadius, 0, bucketSize * 0.667f);
-        maxStepSize = Mathf.Clamp(maxStepSize, 0, bucketSize * 0.667f);
-        minStepSize = Mathf.Clamp(minStepSize, 0, bucketSize * 0.667f);
-        neighborCollisionRadius = Mathf.Clamp(neighborCollisionRadius, 0, bucketSize * 0.667f);
+        bondRange = Mathf.Clamp(bondRange, 0, bucketSize * 0.5f);
+        cellRadius = Mathf.Clamp(cellRadius, 0, bucketSize * 0.5f);
+        maxStepSize = Mathf.Clamp(maxStepSize, 0, bucketSize * 0.5f);
+        minStepSize = Mathf.Clamp(minStepSize, 0, bucketSize * 0.5f);
+        neighborCollisionRadius = Mathf.Clamp(neighborCollisionRadius, 0, bucketSize * 0.5f);
         
         // ensure bucket table size is a power of 2 (has exactly 1 bit)
         if (!(bucketTableSize > 0 && (bucketTableSize & (bucketTableSize - 1)) == 0))
@@ -283,6 +285,10 @@ public class SplantController : MonoBehaviour
         _cellCount.GetData(count);
         var cellCount = (int)count[0];
         
+        // Clear buckets
+        var bucketGroups = Mathf.CeilToInt(bucketTableSize / 64f);
+        compute.Dispatch(_clearBucketsKernel, bucketGroups, 1, 1);
+        
         // Build spatial hash
         compute.DispatchIndirect(_buildSpatialKernel, _cellComputeArgs);
         
@@ -295,10 +301,6 @@ public class SplantController : MonoBehaviour
             typeof(uint), typeof(uint),
             true
         );
-        
-        // Clear and build buckets
-        var bucketGroups = Mathf.CeilToInt(bucketTableSize / 256f);
-        compute.Dispatch(_clearBucketsKernel, bucketGroups, 1, 1);
         
         // Build bucket ranges
         compute.DispatchIndirect(_buildBucketKernel, _cellComputeArgs);
@@ -332,6 +334,7 @@ public class SplantController : MonoBehaviour
         compute.SetFloat(BondLinearStiffnessID, bondLinearStiffness);
         compute.SetFloat(BondRangeSqID, bondRange * bondRange);
         compute.SetFloat(BucketSizeID, bucketSize);
+        compute.SetFloat(CellRadiusID, cellRadius);
         compute.SetFloat(NeighborRadiusID, neighborCollisionRadius);
         compute.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
         compute.SetFloat(RepulsionStrengthID, repulsionStrength);
@@ -352,7 +355,6 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetFloat(MinStepSizeID, minStepSize);
         raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
         raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
-        raymarchMaterial.SetFloat(SSSStartPosID, sssStartPos);
         raymarchMaterial.SetFloat(SSSStepSizeID, sssStepSize);
         raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
         raymarchMaterial.SetFloat(SurfaceThresholdID, surfaceThreshold);
@@ -406,6 +408,7 @@ public class SplantController : MonoBehaviour
     private void SetCellKernalBuffers(int kernel)
     {
         compute.SetBuffer(kernel, BondsID, _bonds);
+        compute.SetBuffer(kernel, BucketCheckId, _bucketCheck);
         compute.SetBuffer(kernel, BucketEndID, _bucketEnd);
         compute.SetBuffer(kernel, BucketStartID, _bucketStart);
         compute.SetBuffer(kernel, CellCountID, _cellCount);
@@ -417,6 +420,7 @@ public class SplantController : MonoBehaviour
 
     private void SetRaymarchBuffers()
     {
+        raymarchMaterial.SetBuffer(BucketCheckId, _bucketCheck);
         raymarchMaterial.SetBuffer(BucketEndID, _bucketEnd);
         raymarchMaterial.SetBuffer(BucketStartID, _bucketStart);
         raymarchMaterial.SetBuffer(CellFullHashID, _cellFullHashes);
