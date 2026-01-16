@@ -43,7 +43,6 @@ public class SplantController : MonoBehaviour
     private static readonly int CellFullHashID = Shader.PropertyToID("cell_full_hash");
     private static readonly int CellIndicesID = Shader.PropertyToID("cell_indices");
     private static readonly int CellRadiusID = Shader.PropertyToID("cell_radius");
-    private static readonly int CellRadiusSqID = Shader.PropertyToID("cell_radius_sq");
     private static readonly int CellRemapID = Shader.PropertyToID("cell_remap");
     private static readonly int CellTableKeysID = Shader.PropertyToID("cell_table_keys");
     private static readonly int CellsID = Shader.PropertyToID("cells");
@@ -57,7 +56,6 @@ public class SplantController : MonoBehaviour
     private static readonly int ForceBufferID = Shader.PropertyToID("force_buffer");
     private static readonly int GravityID = Shader.PropertyToID("gravity");
     private static readonly int IndirectArgsID = Shader.PropertyToID("indirect_args");
-    private static readonly int InvCellRadiusSqID = Shader.PropertyToID("inv_cell_radius_sq");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
     private static readonly int LightDirID = Shader.PropertyToID("light_dir");
     private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
@@ -72,7 +70,6 @@ public class SplantController : MonoBehaviour
     private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
     private static readonly int SSSColorID = Shader.PropertyToID("sss_color");
     private static readonly int SSSFalloffID = Shader.PropertyToID("sss_falloff");
-    private static readonly int SSSSmoothingBandID = Shader.PropertyToID("sss_smoothing_band");
     private static readonly int SSSStepSizeID = Shader.PropertyToID("sss_step_size");
     private static readonly int SSSStepsID = Shader.PropertyToID("sss_steps");
     private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
@@ -159,8 +156,6 @@ public class SplantController : MonoBehaviour
     [SerializeField] private int sssSteps = 12;
     [Range(0.001f, 1f)] 
     [SerializeField] private float sssStepSize = 0.02f;
-    [Range(0.001f, 1f)] 
-    [SerializeField] private float sssSmoothingBand = 0.2f;
     
     private ComputeBuffer _bondCells;
     private ComputeBuffer _bondRest;
@@ -502,16 +497,13 @@ public class SplantController : MonoBehaviour
         
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
-        raymarchMaterial.SetFloat(CellRadiusSqID, cellRadius * cellRadius);
         raymarchMaterial.SetFloat(DebugGradID, debugSdfGrad ? 1f : 0f);
         raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
         raymarchMaterial.SetFloat(FresnelStrengthID, fresnelStrength);
-        raymarchMaterial.SetFloat(InvCellRadiusSqID, 1 / (cellRadius * cellRadius));
         raymarchMaterial.SetFloat(MaxStepSizeID, maxStepSize);
         raymarchMaterial.SetFloat(MinStepSizeID, minStepSize);
         raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
         raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
-        raymarchMaterial.SetFloat(SSSSmoothingBandID, sssSmoothingBand);
         raymarchMaterial.SetFloat(SSSStepSizeID, sssStepSize);
         raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
         raymarchMaterial.SetFloat(SurfaceThresholdID, surfaceThreshold);

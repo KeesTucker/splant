@@ -1,4 +1,3 @@
-#include "Bond.hlsl"
 #include "Cell.hlsl"
 #include "Helpers.hlsl"
 
@@ -61,7 +60,7 @@ uint active_count()
     return min(cell_count[0], max_cells);
 }
 
-void AddInterlockedFloat(RWStructuredBuffer<uint> buffer, uint index, float value)
+void add_interlocked_float(RWStructuredBuffer<uint> buffer, uint index, float value)
 {
     uint expected = buffer[index];
     uint original;
@@ -79,12 +78,12 @@ void AddInterlockedFloat(RWStructuredBuffer<uint> buffer, uint index, float valu
     }
 }
 
-void AddForce(uint id, float3 force)
+void add_force(uint id, float3 force)
 {
     uint base_index = id * 3;
-    AddInterlockedFloat(force_buffer, base_index, force.x);
-    AddInterlockedFloat(force_buffer, base_index + 1, force.y);
-    AddInterlockedFloat(force_buffer, base_index + 2, force.z);
+    add_interlocked_float(force_buffer, base_index, force.x);
+    add_interlocked_float(force_buffer, base_index + 1, force.y);
+    add_interlocked_float(force_buffer, base_index + 2, force.z);
 }
 
 #pragma kernel prepare_indirect_args
@@ -105,13 +104,6 @@ bool should_split(cell c, uint id, float time)
 {
     const float split_age = 0.02;
     return c.age >= split_age && (c.age - delta_time) < split_age;
-}
-
-bool should_die(cell c, uint id, float time)
-{
-    float r = random(id + (uint)(time * 1000) + 12345); // decorrelate
-    float age_factor = 1.0 - exp(-c.age * 0.5); // 0 → 1 as age increases
-    return r < 0.045 * age_factor;
 }
 
 cell make_child(cell parent, uint id)
@@ -146,16 +138,6 @@ void grow(uint id : SV_DispatchThreadID)
     
     c.age += delta_time;
 
-    // Check if should die
-    // No death currently
-    /*if (should_die(c, id, time))
-    {
-        // Mark as dead by setting age to negative
-        c.age = -1.0;
-        cells[id] = c;
-        return;
-    }*/
-    
     // Write back updated cell
     cells[id] = c;
     
@@ -413,7 +395,7 @@ void apply_collision_forces(uint id : SV_DispatchThreadID)
                 }
             }
     
-    AddForce(id, accel);
+    add_force(id, accel);
 }
 
 #pragma kernel apply_bond_forces
@@ -468,8 +450,8 @@ void apply_bond_forces(uint id : SV_DispatchThreadID)
 
         bond_force += rot_force * bond_bend_stiffness;
 
-        AddForce(id, bond_force);
-        AddForce(cell_b, -bond_force);
+        add_force(id, bond_force);
+        add_force(cell_b, -bond_force);
     }
 }
 
@@ -488,11 +470,6 @@ void resolve_force_buffer(uint id : SV_DispatchThreadID)
         asfloat(force_buffer[base_index + 2])
     );
 
-    if (any(force != force))
-    {
-        force = float3(0, 0, 0);
-    }
-
     // Clear buffer for next frame.
     force_buffer[base_index] = 0;
     force_buffer[base_index + 1] = 0;
@@ -505,10 +482,7 @@ void resolve_force_buffer(uint id : SV_DispatchThreadID)
     float3 v = velocities[id];
     v += accel * delta_time;
     v *= exp(-damping * delta_time);
-    if (any(v != v))
-    {
-        v = float3(0, 0, 0);
-    }
+
     c.position += v * delta_time;
     float3 clamped = clamp(c.position, bounds_min + cell_radius, bounds_max - cell_radius);
     if (any(c.position != clamped))
