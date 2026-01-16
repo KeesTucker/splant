@@ -51,6 +51,8 @@ public class SplantController : MonoBehaviour
     private static readonly int DeltaTimeID = Shader.PropertyToID("delta_time");
     private static readonly int DampingID = Shader.PropertyToID("damping");
     private static readonly int DebugGradID = Shader.PropertyToID("debug_grad");
+    private static readonly int DebugAtlasID = Shader.PropertyToID("debug_atlas");
+    private static readonly int DebugAtlasSliceID = Shader.PropertyToID("debug_atlas_slice");
     private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
     private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
     private static readonly int ForceBufferID = Shader.PropertyToID("force_buffer");
@@ -152,6 +154,8 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float fresnelStrength = 0.15f;
     [SerializeField] private Color baseColour = new(0.2f, 0.9f, 0.5f, 1f);
     [SerializeField] private bool debugSdfGrad;
+    [SerializeField] private bool debugAtlasSlice;
+    [SerializeField] private int debugAtlasSliceIndex;
     
     [Header("SDF Bricks")]
     [SerializeField] private float sdfMaxDistance = 0.2f;
@@ -519,6 +523,8 @@ public class SplantController : MonoBehaviour
         raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
         raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
         raymarchMaterial.SetFloat(DebugGradID, debugSdfGrad ? 1f : 0f);
+        raymarchMaterial.SetFloat(DebugAtlasID, debugAtlasSlice ? 1f : 0f);
+        raymarchMaterial.SetFloat(DebugAtlasSliceID, debugAtlasSliceIndex);
         raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
         raymarchMaterial.SetFloat(FresnelStrengthID, fresnelStrength);
         raymarchMaterial.SetFloat(MaxStepSizeID, maxStepSize);

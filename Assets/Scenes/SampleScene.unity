@@ -299,7 +299,9 @@ MonoBehaviour:
   fresnelStrength: 0.1
   baseColour: {r: 0, g: 0.019607844, b: 0.001600317, a: 1}
   debugSdfGrad: 0
-  sdfMaxDistance: 0.2
+  debugAtlasSlice: 0
+  debugAtlasSliceIndex: 0
+  sdfMaxDistance: 0.1
   sdfMaxBricks: 32768
   sdfSamplesPerBucket: 4
   sssColor: {r: 0.48707294, g: 0.5647059, b: 0, a: 1}

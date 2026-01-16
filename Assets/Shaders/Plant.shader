@@ -30,6 +30,8 @@ Shader "Raymarch/Plant"
             float max_step_size;
             float min_step_size;
             float debug_grad;
+            float debug_atlas;
+            float debug_atlas_slice;
             float sss_falloff;
             float sss_step_size;
             float sss_strength;
@@ -239,6 +241,16 @@ Shader "Raymarch/Plant"
             
             float4 frag(vs_out input) : SV_Target
             {
+                if (debug_atlas > 0.5)
+                {
+                    int3 atlas_dim = (int3)sdf_atlas_brick_dim * 8;
+                    int2 atlas_xy = (int2)floor(input.uv * atlas_dim.xy);
+                    atlas_xy = clamp(atlas_xy, int2(0, 0), atlas_dim.xy - 1);
+                    int slice = clamp((int)floor(debug_atlas_slice), 0, atlas_dim.z - 1);
+                    float encoded = sdf_brick_atlas.Load(int4(atlas_xy, slice, 0));
+                    return float4(encoded, encoded, encoded, 1);
+                }
+
                 // start ray at camera position
                 float3 ray_origin = camera_pos;
                 float3 ray_direction = get_ray_dir_for_uv(input.uv);
