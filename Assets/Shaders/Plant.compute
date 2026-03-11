@@ -46,6 +46,8 @@ int max_bonds_per_cell;
 uint bucket_table_size;
 uint max_bonds;
 uint max_cells;
+uint growth_mode;       // 0 = blob, 1 = string
+uint max_splits_per_cell;
 float sdf_max_distance;
 uint3 sdf_bucket_dim;
 uint3 sdf_sample_dim;
@@ -123,23 +125,35 @@ void prepare_indirect_args(uint3 id : SV_DispatchThreadID)
     indirect_args[2] = 1;
 }
 
+float split_age;
+float split_age_jitter;
+
 bool should_split(cell c, uint id, float time)
 {
-    const float split_age = 0.02;
-    return c.age >= split_age && (c.age - delta_time) < split_age;
+    float cell_split_age = split_age + (random(id * 6271) - 0.5) * 2.0 * split_age_jitter;
+    return c.age >= cell_split_age && (c.age - delta_time) < cell_split_age;
 }
 
 cell make_child(cell parent, uint id)
 {
     cell child;
     child.age = 0;
-    float3 dir = safe_normalize(parent.polarity);
     float3 jitter = float3(
         random(id * 44317) - 0.5,
         random(id * 3231) - 0.5,
         random(id * 432457) - 0.5
     );
-    dir = safe_normalize(dir + jitter * 0.2);
+    float3 dir;
+    if (growth_mode == 0)
+    {
+        // Blob: fully random direction
+        dir = safe_normalize(jitter);
+    }
+    else
+    {
+        // String: grow along polarity with slight jitter
+        dir = safe_normalize(safe_normalize(parent.polarity) + jitter * 0.2);
+    }
     float spacing = sqrt(bond_range_sq) * 0.9;
     child.position = parent.position + dir * spacing;
     child.polarity = dir;
@@ -167,16 +181,17 @@ void grow(uint id : SV_DispatchThreadID)
     // Try to split
     if (should_split(c, id, time) && count < max_cells * 0.95)
     {
-        uint child_idx;
-        InterlockedAdd(cell_count[0], 1, child_idx);
-
-        // Could get counter drift if this is out of range and doesn't make a child but has already incremented
-        // counter. Resolved in finalize compact.
-        if (child_idx < max_cells)
+        for (uint s = 0; s < max_splits_per_cell; s++)
         {
-            cell child = make_child(c, id);
-            cells[child_idx] = child;
-            velocities[child_idx] = float3(0, 0, 0);
+            uint child_idx;
+            InterlockedAdd(cell_count[0], 1, child_idx);
+
+            if (child_idx < max_cells)
+            {
+                cell child = make_child(c, id * 7919 + s);
+                cells[child_idx] = child;
+                velocities[child_idx] = float3(0, 0, 0);
+            }
         }
     }
 }

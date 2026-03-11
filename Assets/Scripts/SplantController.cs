@@ -7,6 +7,8 @@ using UnityEngine.Experimental.Rendering;
 
 public class SplantController : MonoBehaviour
 {
+    private enum GrowthMode { Blob, String }
+
     private int _addBondsKernel;
     private int _applyBondForcesKernel;
     private int _applyCollisionForcesKernel;
@@ -57,6 +59,10 @@ public class SplantController : MonoBehaviour
     private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
     private static readonly int ForceBufferID = Shader.PropertyToID("force_buffer");
     private static readonly int GravityID = Shader.PropertyToID("gravity");
+    private static readonly int GrowthModeID = Shader.PropertyToID("growth_mode");
+    private static readonly int MaxSplitsPerCellID = Shader.PropertyToID("max_splits_per_cell");
+    private static readonly int SplitAgeID = Shader.PropertyToID("split_age");
+    private static readonly int SplitAgeJitterID = Shader.PropertyToID("split_age_jitter");
     private static readonly int IndirectArgsID = Shader.PropertyToID("indirect_args");
     private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
     private static readonly int LightDirID = Shader.PropertyToID("light_dir");
@@ -110,6 +116,15 @@ public class SplantController : MonoBehaviour
     [SerializeField] private Material raymarchMaterial;
     [SerializeField] private uint maxCells = 100000;
     
+    [Header("Growth")]
+    [SerializeField] private GrowthMode growthMode = GrowthMode.String;
+    [Min(1)]
+    [SerializeField] private int splitsPerCell = 1;
+    [Min(0.001f)]
+    [SerializeField] private float splitAge = 0.02f;
+    [Min(0f)]
+    [SerializeField] private float splitAgeJitter = 0.01f;
+
     [Header("Compaction")]
     [SerializeField] private int compactEveryNFrames = 60;
     
@@ -497,6 +512,10 @@ public class SplantController : MonoBehaviour
         compute.SetFloat(CellRadiusID, cellRadius);
         compute.SetFloat(DampingID, damping);
         compute.SetVector(GravityID, gravity);
+        compute.SetInt(GrowthModeID, (int)growthMode);
+        compute.SetInt(MaxSplitsPerCellID, Mathf.Max(1, splitsPerCell));
+        compute.SetFloat(SplitAgeID, Mathf.Max(0.001f, splitAge));
+        compute.SetFloat(SplitAgeJitterID, Mathf.Max(0f, splitAgeJitter));
         compute.SetFloat(NeighborRadiusID, neighborCollisionRadius);
         compute.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
         compute.SetFloat(RepulsionStrengthID, repulsionStrength);
