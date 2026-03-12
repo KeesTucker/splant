@@ -274,45 +274,53 @@ MonoBehaviour:
   mainLight: {fileID: 705507995}
   raymarchMaterial: {fileID: 2100000, guid: ed01d611c199d274ca29294071c5ed6d, type: 2}
   maxCells: 30000
-  growthMode: 0
-  splitsPerCell: 3
-  splitAge: 0.5
-  splitAgeJitter: 0.25
   compactEveryNFrames: 0
-  bucketSize: 0.2
-  bucketTableSize: 262144
-  neighborCollisionRadius: 0.1
-  repulsionStrength: 3
-  damping: 3
-  gravity: {x: 0, y: 0, z: 0}
-  windDirection: {x: 1, y: 0, z: 0}
-  windStrength: 0.1
-  windFrequency: 0.5
-  windSpeed: 0.2
-  windVariation: 2.6
-  bondRange: 0.1
-  bondLinearStiffness: 10
-  bondBendStiffness: 1
-  maxBondsPerCell: 1
-  maxSteps: 200
-  cellRadius: 0.1
-  minStepSize: 0.02001
-  maxStepSize: 0.0667
-  surfaceThreshold: 0.037
-  fresnelPow: 2.3
-  fresnelStrength: 0.1
-  baseColour: {r: 0, g: 0.019607844, b: 0.001600317, a: 1}
-  debugSdfGrad: 0
-  debugAtlasSlice: 0
-  debugAtlasSliceIndex: 0
-  sdfMaxDistance: 0.1
-  sdfMaxBricks: 32768
-  sdfSamplesPerBucket: 8
-  sssColor: {r: 0.48707294, g: 0.5647059, b: 0, a: 1}
-  sssStrength: 0.523
-  sssFalloff: 0.37
-  sssSteps: 50
-  sssStepSize: 1
+  growth:
+    mode: 0
+    splitsPerCell: 3
+    splitAge: 0.5
+    splitAgeJitter: 0.25
+  spatialHash:
+    bucketSize: 0.2
+    bucketTableSize: 262144
+  physics:
+    neighborRadius: 0.1
+    repulsionStrength: 3
+    damping: 3
+    gravity: {x: 0, y: 0, z: 0}
+  wind:
+    direction: {x: 1, y: 0, z: 0}
+    strength: 0.1
+    frequency: 0.5
+    speed: 0.2
+    variation: 2.6
+  bonds:
+    range: 0.1
+    linearStiffness: 10
+    bendStiffness: 1
+    maxBondsPerCell: 1
+  rendering:
+    maxSteps: 200
+    cellRadius: 0.1
+    minStepSize: 0.02
+    maxStepSize: 0.0667
+    surfaceThreshold: 0.037
+    fresnelPow: 2.3
+    fresnelStrength: 0.1
+    baseColour: {r: 0, g: 0.019607844, b: 0.001600317, a: 1}
+    debugSdfGrad: 0
+    debugAtlasSlice: 0
+    debugAtlasSliceIndex: 0
+  sss:
+    color: {r: 0.48707294, g: 0.5647059, b: 0, a: 1}
+    strength: 0.523
+    falloff: 0.37
+    steps: 50
+    stepSize: 1
+  sdfBricks:
+    maxDistance: 0.1
+    maxBricks: 32768
+    samplesPerBucket: 8
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
