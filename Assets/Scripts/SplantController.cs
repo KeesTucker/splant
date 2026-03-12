@@ -9,6 +9,89 @@ public class SplantController : MonoBehaviour
 {
     private enum GrowthMode { Blob, String }
 
+    private static class ShaderID
+    {
+        public static readonly int BaseColor           = Shader.PropertyToID("base_color");
+        public static readonly int BondBendStiffness   = Shader.PropertyToID("bond_bend_stiffness");
+        public static readonly int BondLinearStiffness = Shader.PropertyToID("bond_linear_stiffness");
+        public static readonly int BondRangeSq         = Shader.PropertyToID("bond_range_sq");
+        public static readonly int BondCells           = Shader.PropertyToID("bond_cells");
+        public static readonly int BondRest            = Shader.PropertyToID("bond_rest");
+        public static readonly int BoundsMax           = Shader.PropertyToID("bounds_max");
+        public static readonly int BoundsMin           = Shader.PropertyToID("bounds_min");
+        public static readonly int BucketCheck         = Shader.PropertyToID("bucket_check");
+        public static readonly int BucketEnd           = Shader.PropertyToID("bucket_end");
+        public static readonly int BucketSize          = Shader.PropertyToID("bucket_size");
+        public static readonly int BucketStart         = Shader.PropertyToID("bucket_start");
+        public static readonly int BucketTableSize     = Shader.PropertyToID("bucket_table_size");
+        public static readonly int CameraPos           = Shader.PropertyToID("camera_pos");
+        public static readonly int CellCount           = Shader.PropertyToID("cell_count");
+        public static readonly int CellFullHash        = Shader.PropertyToID("cell_full_hash");
+        public static readonly int CellIndices         = Shader.PropertyToID("cell_indices");
+        public static readonly int CellRadius          = Shader.PropertyToID("cell_radius");
+        public static readonly int CellRemap           = Shader.PropertyToID("cell_remap");
+        public static readonly int CellTableKeys       = Shader.PropertyToID("cell_table_keys");
+        public static readonly int Cells               = Shader.PropertyToID("cells");
+        public static readonly int CellsTemp           = Shader.PropertyToID("cells_temp");
+        public static readonly int CompactCount        = Shader.PropertyToID("compact_count");
+        public static readonly int DeltaTime           = Shader.PropertyToID("delta_time");
+        public static readonly int Damping             = Shader.PropertyToID("damping");
+        public static readonly int DebugGrad           = Shader.PropertyToID("debug_grad");
+        public static readonly int DebugAtlas          = Shader.PropertyToID("debug_atlas");
+        public static readonly int DebugAtlasSlice     = Shader.PropertyToID("debug_atlas_slice");
+        public static readonly int FresnelPow          = Shader.PropertyToID("fresnel_pow");
+        public static readonly int FresnelStrength     = Shader.PropertyToID("fresnel_strength");
+        public static readonly int ForceBuffer         = Shader.PropertyToID("force_buffer");
+        public static readonly int Gravity             = Shader.PropertyToID("gravity");
+        public static readonly int GrowthMode          = Shader.PropertyToID("growth_mode");
+        public static readonly int MaxSplitsPerCell    = Shader.PropertyToID("max_splits_per_cell");
+        public static readonly int SplitAge            = Shader.PropertyToID("split_age");
+        public static readonly int SplitAgeJitter      = Shader.PropertyToID("split_age_jitter");
+        public static readonly int IndirectArgs        = Shader.PropertyToID("indirect_args");
+        public static readonly int InvViewProj         = Shader.PropertyToID("inv_view_proj");
+        public static readonly int LightDir            = Shader.PropertyToID("light_dir");
+        public static readonly int MaxBonds            = Shader.PropertyToID("max_bonds");
+        public static readonly int MaxBondsPerCell     = Shader.PropertyToID("max_bonds_per_cell");
+        public static readonly int MaxCells            = Shader.PropertyToID("max_cells");
+        public static readonly int MaxStepSize         = Shader.PropertyToID("max_step_size");
+        public static readonly int MaxSteps            = Shader.PropertyToID("max_steps");
+        public static readonly int MinStepSize         = Shader.PropertyToID("min_step_size");
+        public static readonly int NeighborRadius      = Shader.PropertyToID("neighbor_radius");
+        public static readonly int NeighborRadiusSq    = Shader.PropertyToID("neighbor_radius_sq");
+        public static readonly int RepulsionStrength   = Shader.PropertyToID("repulsion_strength");
+        public static readonly int SSSColor            = Shader.PropertyToID("sss_color");
+        public static readonly int SSSFalloff          = Shader.PropertyToID("sss_falloff");
+        public static readonly int SSSStepSize         = Shader.PropertyToID("sss_step_size");
+        public static readonly int SSSSteps            = Shader.PropertyToID("sss_steps");
+        public static readonly int SSSStrength         = Shader.PropertyToID("sss_strength");
+        public static readonly int SdfBrickAtlas       = Shader.PropertyToID("sdf_brick_atlas");
+        public static readonly int SdfBrickIndex       = Shader.PropertyToID("sdf_brick_index");
+        public static readonly int SdfBrickCounter     = Shader.PropertyToID("sdf_brick_counter");
+        public static readonly int SdfBrickDim         = Shader.PropertyToID("sdf_brick_dim");
+        public static readonly int SdfBucketCheckRo    = Shader.PropertyToID("bucket_check_ro");
+        public static readonly int SdfBucketEndRo      = Shader.PropertyToID("bucket_end_ro");
+        public static readonly int SdfBucketStartRo    = Shader.PropertyToID("bucket_start_ro");
+        public static readonly int SdfCellsRo          = Shader.PropertyToID("cells_ro");
+        public static readonly int SdfCellFullHashRo   = Shader.PropertyToID("cell_full_hash_ro");
+        public static readonly int SdfCellIndicesRo    = Shader.PropertyToID("cell_indices_ro");
+        public static readonly int SdfBucketDim        = Shader.PropertyToID("sdf_bucket_dim");
+        public static readonly int SdfBucketMin        = Shader.PropertyToID("sdf_bucket_min");
+        public static readonly int SdfAtlasBrickDim    = Shader.PropertyToID("sdf_atlas_brick_dim");
+        public static readonly int SdfMaxDistance      = Shader.PropertyToID("sdf_max_distance");
+        public static readonly int SdfMaxBricks        = Shader.PropertyToID("sdf_max_bricks");
+        public static readonly int SdfSampleDim        = Shader.PropertyToID("sdf_sample_dim");
+        public static readonly int SdfSamplesPerBucket = Shader.PropertyToID("sdf_samples_per_bucket");
+        public static readonly int SurfaceThreshold    = Shader.PropertyToID("surface_threshold");
+        public static readonly int Time                = Shader.PropertyToID("time");
+        public static readonly int Velocities          = Shader.PropertyToID("velocities");
+        public static readonly int VelocitiesTemp      = Shader.PropertyToID("velocities_temp");
+        public static readonly int WindDirection       = Shader.PropertyToID("wind_direction");
+        public static readonly int WindFrequency       = Shader.PropertyToID("wind_frequency");
+        public static readonly int WindSpeed           = Shader.PropertyToID("wind_speed");
+        public static readonly int WindStrength        = Shader.PropertyToID("wind_strength");
+        public static readonly int WindVariation       = Shader.PropertyToID("wind_variation");
+    }
+
     private int _addBondsKernel;
     private int _applyBondForcesKernel;
     private int _applyCollisionForcesKernel;
@@ -26,88 +109,7 @@ public class SplantController : MonoBehaviour
     private int _remapBondsKernel;
     private int _resolveForceBufferKernel;
     private int _writeCompactedKernel;
-    
-    private static readonly int BaseColorID = Shader.PropertyToID("base_color");
-    private static readonly int BondBendStiffnessID = Shader.PropertyToID("bond_bend_stiffness");
-    private static readonly int BondLinearStiffnessID = Shader.PropertyToID("bond_linear_stiffness");
-    private static readonly int BondRangeSqID = Shader.PropertyToID("bond_range_sq");
-    private static readonly int BondCellsID = Shader.PropertyToID("bond_cells");
-    private static readonly int BondRestID = Shader.PropertyToID("bond_rest");
-    private static readonly int BoundsMaxId = Shader.PropertyToID("bounds_max");
-    private static readonly int BoundsMinId = Shader.PropertyToID("bounds_min");
-    private static readonly int BucketCheckId = Shader.PropertyToID("bucket_check");
-    private static readonly int BucketEndID = Shader.PropertyToID("bucket_end");
-    private static readonly int BucketSizeID = Shader.PropertyToID("bucket_size");
-    private static readonly int BucketStartID = Shader.PropertyToID("bucket_start");
-    private static readonly int BucketTableSizeID = Shader.PropertyToID("bucket_table_size");
-    private static readonly int CameraPosID = Shader.PropertyToID("camera_pos");
-    private static readonly int CellCountID = Shader.PropertyToID("cell_count");
-    private static readonly int CellFullHashID = Shader.PropertyToID("cell_full_hash");
-    private static readonly int CellIndicesID = Shader.PropertyToID("cell_indices");
-    private static readonly int CellRadiusID = Shader.PropertyToID("cell_radius");
-    private static readonly int CellRemapID = Shader.PropertyToID("cell_remap");
-    private static readonly int CellTableKeysID = Shader.PropertyToID("cell_table_keys");
-    private static readonly int CellsID = Shader.PropertyToID("cells");
-    private static readonly int CellsTempID = Shader.PropertyToID("cells_temp");
-    private static readonly int CompactCountID = Shader.PropertyToID("compact_count");
-    private static readonly int DeltaTimeID = Shader.PropertyToID("delta_time");
-    private static readonly int DampingID = Shader.PropertyToID("damping");
-    private static readonly int DebugGradID = Shader.PropertyToID("debug_grad");
-    private static readonly int DebugAtlasID = Shader.PropertyToID("debug_atlas");
-    private static readonly int DebugAtlasSliceID = Shader.PropertyToID("debug_atlas_slice");
-    private static readonly int FresnelPowID = Shader.PropertyToID("fresnel_pow");
-    private static readonly int FresnelStrengthID = Shader.PropertyToID("fresnel_strength");
-    private static readonly int ForceBufferID = Shader.PropertyToID("force_buffer");
-    private static readonly int GravityID = Shader.PropertyToID("gravity");
-    private static readonly int GrowthModeID = Shader.PropertyToID("growth_mode");
-    private static readonly int MaxSplitsPerCellID = Shader.PropertyToID("max_splits_per_cell");
-    private static readonly int SplitAgeID = Shader.PropertyToID("split_age");
-    private static readonly int SplitAgeJitterID = Shader.PropertyToID("split_age_jitter");
-    private static readonly int IndirectArgsID = Shader.PropertyToID("indirect_args");
-    private static readonly int InvViewProjID = Shader.PropertyToID("inv_view_proj");
-    private static readonly int LightDirID = Shader.PropertyToID("light_dir");
-    private static readonly int MaxBondsId = Shader.PropertyToID("max_bonds");
-    private static readonly int MaxBondsPerCellID = Shader.PropertyToID("max_bonds_per_cell");
-    private static readonly int MaxCellsID   = Shader.PropertyToID("max_cells");
-    private static readonly int MaxStepSizeID = Shader.PropertyToID("max_step_size");
-    private static readonly int MaxStepsID = Shader.PropertyToID("max_steps");
-    
-    private static readonly int MinStepSizeID = Shader.PropertyToID("min_step_size");
-    private static readonly int NeighborRadiusID = Shader.PropertyToID("neighbor_radius");
-    private static readonly int NeighborRadiusSqID = Shader.PropertyToID("neighbor_radius_sq");
-    private static readonly int RepulsionStrengthID = Shader.PropertyToID("repulsion_strength");
-    private static readonly int SSSColorID = Shader.PropertyToID("sss_color");
-    private static readonly int SSSFalloffID = Shader.PropertyToID("sss_falloff");
-    private static readonly int SSSStepSizeID = Shader.PropertyToID("sss_step_size");
-    private static readonly int SSSStepsID = Shader.PropertyToID("sss_steps");
-    private static readonly int SSSStrengthID = Shader.PropertyToID("sss_strength");
-    private static readonly int SdfBrickAtlasID = Shader.PropertyToID("sdf_brick_atlas");
-    private static readonly int SdfBrickIndexID = Shader.PropertyToID("sdf_brick_index");
-    private static readonly int SdfBrickCounterID = Shader.PropertyToID("sdf_brick_counter");
-    private static readonly int SdfBrickDimID = Shader.PropertyToID("sdf_brick_dim");
-    private static readonly int SdfBucketCheckRoID = Shader.PropertyToID("bucket_check_ro");
-    private static readonly int SdfBucketEndRoID = Shader.PropertyToID("bucket_end_ro");
-    private static readonly int SdfBucketStartRoID = Shader.PropertyToID("bucket_start_ro");
-    private static readonly int SdfCellsRoID = Shader.PropertyToID("cells_ro");
-    private static readonly int SdfCellFullHashRoID = Shader.PropertyToID("cell_full_hash_ro");
-    private static readonly int SdfCellIndicesRoID = Shader.PropertyToID("cell_indices_ro");
-    private static readonly int SdfBucketDimID = Shader.PropertyToID("sdf_bucket_dim");
-    private static readonly int SdfBucketMinID = Shader.PropertyToID("sdf_bucket_min");
-    private static readonly int SdfAtlasBrickDimID = Shader.PropertyToID("sdf_atlas_brick_dim");
-    private static readonly int SdfMaxDistanceID = Shader.PropertyToID("sdf_max_distance");
-    private static readonly int SdfMaxBricksID = Shader.PropertyToID("sdf_max_bricks");
-    private static readonly int SdfSampleDimID = Shader.PropertyToID("sdf_sample_dim");
-    private static readonly int SdfSamplesPerBucketID = Shader.PropertyToID("sdf_samples_per_bucket");
-    private static readonly int SurfaceThresholdID = Shader.PropertyToID("surface_threshold");
-    private static readonly int TimeID = Shader.PropertyToID("time");
-    private static readonly int VelocitiesID = Shader.PropertyToID("velocities");
-    private static readonly int VelocitiesTempID = Shader.PropertyToID("velocities_temp");
-    private static readonly int WindDirectionID = Shader.PropertyToID("wind_direction");
-    private static readonly int WindFrequencyID = Shader.PropertyToID("wind_frequency");
-    private static readonly int WindSpeedID = Shader.PropertyToID("wind_speed");
-    private static readonly int WindStrengthID = Shader.PropertyToID("wind_strength");
-    private static readonly int WindVariationID = Shader.PropertyToID("wind_variation");
-    
+
     [SerializeField] private Bounds bounds = new(Vector3.zero, Vector3.one * 10);
     [SerializeField] private Camera mainCamera;
     [SerializeField] private ComputeShader compute;
@@ -115,7 +117,7 @@ public class SplantController : MonoBehaviour
     [SerializeField] private Transform mainLight;
     [SerializeField] private Material raymarchMaterial;
     [SerializeField] private uint maxCells = 100000;
-    
+
     [Header("Growth")]
     [SerializeField] private GrowthMode growthMode = GrowthMode.String;
     [Min(1)]
@@ -127,13 +129,13 @@ public class SplantController : MonoBehaviour
 
     [Header("Compaction")]
     [SerializeField] private int compactEveryNFrames = 60;
-    
+
     [Header("Spatial Hashing")]
     [SerializeField] private float bucketSize = 0.1f;
     [Tooltip("Must be a power of 2")]
     [SerializeField] private int bucketTableSize = 1 << 18;
-    
-    [Header("Physics")] 
+
+    [Header("Physics")]
     [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float neighborCollisionRadius = 0.5f;
     [SerializeField] private float repulsionStrength = 1f;
@@ -146,16 +148,16 @@ public class SplantController : MonoBehaviour
     [SerializeField] private float windFrequency = 0.15f;
     [SerializeField] private float windSpeed = 0.8f;
     [SerializeField] private float windVariation = 0.35f;
-    
-    [Header("Bonds")] 
+
+    [Header("Bonds")]
     [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float bondRange = 0.05f;
     [SerializeField] private float bondLinearStiffness = 1f;
     [SerializeField] private float bondBendStiffness = 1f;
     [SerializeField] private uint maxBondsPerCell = 6;
-    
+
     [Header("Rendering")]
-    [Range(1, 512)] 
+    [Range(1, 512)]
     [SerializeField] private int maxSteps = 256;
     [Tooltip("Must be <= 0.5x bucketSize")]
     [SerializeField] private float cellRadius = 0.05f;
@@ -171,23 +173,23 @@ public class SplantController : MonoBehaviour
     [SerializeField] private bool debugSdfGrad;
     [SerializeField] private bool debugAtlasSlice;
     [SerializeField] private int debugAtlasSliceIndex;
-    
+
     [Header("SDF Bricks")]
     [SerializeField] private float sdfMaxDistance = 0.2f;
     [SerializeField] private int sdfMaxBricks = 32768;
     [SerializeField] private int sdfSamplesPerBucket = 2;
-    
-    [Header("SSS")] 
+
+    [Header("SSS")]
     [SerializeField] private Color sssColor = new(0.95f, 0.6f, 0.5f, 1f);
     [Range(0f, 2f)]
     [SerializeField] private float sssStrength = 0.6f;
     [Range(0.1f, 20f)]
     [SerializeField] private float sssFalloff = 1.5f;
-    [Range(1, 50)] 
+    [Range(1, 50)]
     [SerializeField] private int sssSteps = 12;
-    [Range(0.001f, 1f)] 
+    [Range(0.001f, 1f)]
     [SerializeField] private float sssStepSize = 0.02f;
-    
+
     private ComputeBuffer _bondCells;
     private ComputeBuffer _bondRest;
     private ComputeBuffer _bucketCheck;
@@ -212,7 +214,7 @@ public class SplantController : MonoBehaviour
     private ComputeBuffer _sdfBrickCounter;
     private RenderTexture _sdfBrickAtlas;
     private RenderTexture _sdfBrickIndex;
-    
+
     private Vector3Int _sdfBucketDim;
     private Vector3Int _sdfBucketMin;
     private Vector3Int _sdfSampleDim;
@@ -220,7 +222,7 @@ public class SplantController : MonoBehaviour
     private Vector3Int _sdfAtlasBrickDim;
     private Vector3Int _sdfAtlasTexDim;
     private int _sdfMaxBricksApplied;
-    
+
     private DeviceRadixSort _deviceRadixSort;
     private int _frameCount;
 
@@ -236,23 +238,23 @@ public class SplantController : MonoBehaviour
 
     private void FindKernels()
     {
-        _addBondsKernel = compute.FindKernel("add_bonds");
-        _applyBondForcesKernel = compute.FindKernel("apply_bond_forces");
-        _applyCollisionForcesKernel = compute.FindKernel("apply_collision_forces");
-        _buildBucketKernel = compute.FindKernel("build_bucket_ranges");
-        _buildSdfBricksKernel = compute.FindKernel("build_sdf_bricks");
-        _clearSdfIndexKernel = compute.FindKernel("clear_sdf_index");
-        _buildSpatialKernel = compute.FindKernel("build_spatial_hash");
-        _clearBucketsKernel = compute.FindKernel("clear_buckets");
-        _compactCellsKernel = compute.FindKernel("compact_cells");
-        _copyBackKernel = compute.FindKernel("copy_back");
-        _finalizeCompactKernel = compute.FindKernel("finalize_compact");
-        _growKernel = compute.FindKernel("grow");
-        _initBondsKernel = compute.FindKernel("init_bonds");
-        _prepareIndirectArgsKernel = compute.FindKernel("prepare_indirect_args");
-        _remapBondsKernel = compute.FindKernel("remap_bonds");
-        _resolveForceBufferKernel = compute.FindKernel("resolve_force_buffer");
-        _writeCompactedKernel = compute.FindKernel("write_compacted");
+        _addBondsKernel              = compute.FindKernel("add_bonds");
+        _applyBondForcesKernel       = compute.FindKernel("apply_bond_forces");
+        _applyCollisionForcesKernel  = compute.FindKernel("apply_collision_forces");
+        _buildBucketKernel           = compute.FindKernel("build_bucket_ranges");
+        _buildSdfBricksKernel        = compute.FindKernel("build_sdf_bricks");
+        _clearSdfIndexKernel         = compute.FindKernel("clear_sdf_index");
+        _buildSpatialKernel          = compute.FindKernel("build_spatial_hash");
+        _clearBucketsKernel          = compute.FindKernel("clear_buckets");
+        _compactCellsKernel          = compute.FindKernel("compact_cells");
+        _copyBackKernel              = compute.FindKernel("copy_back");
+        _finalizeCompactKernel       = compute.FindKernel("finalize_compact");
+        _growKernel                  = compute.FindKernel("grow");
+        _initBondsKernel             = compute.FindKernel("init_bonds");
+        _prepareIndirectArgsKernel   = compute.FindKernel("prepare_indirect_args");
+        _remapBondsKernel            = compute.FindKernel("remap_bonds");
+        _resolveForceBufferKernel    = compute.FindKernel("resolve_force_buffer");
+        _writeCompactedKernel        = compute.FindKernel("write_compacted");
     }
 
     private void InitBuffers()
@@ -265,23 +267,23 @@ public class SplantController : MonoBehaviour
         var cellStride = Marshal.SizeOf<Cell>();
         var maxBonds = (int)maxCells * (int)maxBondsPerCell;
 
-        _bondCells = new ComputeBuffer(maxBonds, sizeof(uint) * 2);
-        _bondRest = new ComputeBuffer(maxBonds, sizeof(float) * 4);
-        _bucketCheck = new ComputeBuffer(bucketTableSize, sizeof(uint));
-        _bucketEnd = new ComputeBuffer(bucketTableSize, sizeof(uint));
-        _bucketStart = new ComputeBuffer(bucketTableSize, sizeof(uint));
+        _bondCells       = new ComputeBuffer(maxBonds, sizeof(uint) * 2);
+        _bondRest        = new ComputeBuffer(maxBonds, sizeof(float) * 4);
+        _bucketCheck     = new ComputeBuffer(bucketTableSize, sizeof(uint));
+        _bucketEnd       = new ComputeBuffer(bucketTableSize, sizeof(uint));
+        _bucketStart     = new ComputeBuffer(bucketTableSize, sizeof(uint));
         _cellComputeArgs = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
-        _cellCount = new ComputeBuffer(1, sizeof(uint));
-        _cellFullHashes = new ComputeBuffer((int)maxCells, sizeof(uint));
-        _cellIndices = new ComputeBuffer((int)maxCells, sizeof(uint));
-        _cellRemap = new ComputeBuffer((int)maxCells, sizeof(uint));
-        _cellTableKeys = new ComputeBuffer((int)maxCells, sizeof(uint));
-        _cells = new ComputeBuffer((int)maxCells, cellStride);
-        _cellsTemp = new ComputeBuffer((int)maxCells, cellStride);
-        _compactCount = new ComputeBuffer(1, sizeof(uint));
-        _forceBuffer = new ComputeBuffer((int)maxCells * 3, sizeof(uint));
-        _velocities = new ComputeBuffer((int)maxCells, sizeof(float) * 3);
-        _velocitiesTemp = new ComputeBuffer((int)maxCells, sizeof(float) * 3);
+        _cellCount       = new ComputeBuffer(1, sizeof(uint));
+        _cellFullHashes  = new ComputeBuffer((int)maxCells, sizeof(uint));
+        _cellIndices     = new ComputeBuffer((int)maxCells, sizeof(uint));
+        _cellRemap       = new ComputeBuffer((int)maxCells, sizeof(uint));
+        _cellTableKeys   = new ComputeBuffer((int)maxCells, sizeof(uint));
+        _cells           = new ComputeBuffer((int)maxCells, cellStride);
+        _cellsTemp       = new ComputeBuffer((int)maxCells, cellStride);
+        _compactCount    = new ComputeBuffer(1, sizeof(uint));
+        _forceBuffer     = new ComputeBuffer((int)maxCells * 3, sizeof(uint));
+        _velocities      = new ComputeBuffer((int)maxCells, sizeof(float) * 3);
+        _velocitiesTemp  = new ComputeBuffer((int)maxCells, sizeof(float) * 3);
 
         // Init
         _cellComputeArgs.SetData(new uint[] { 1, 1, 1 });
@@ -290,31 +292,20 @@ public class SplantController : MonoBehaviour
         _forceBuffer.SetData(new uint[(int)maxCells * 3]);
         _velocities.SetData(new Vector3[(int)maxCells]);
         _velocitiesTemp.SetData(new Vector3[(int)maxCells]);
-        
+
         // Seed with one cell
         _cells.SetData(new[] {
-            new Cell
-            {
-                age = 0,
-                position = Vector3.zero,
-                polarity = Vector3.up
-            },
-            new Cell
-            {
-                age = 0,
-                position = Vector3.one * 2,
-                polarity = Vector3.up
-            }
+            new Cell { age = 0, position = Vector3.zero,    polarity = Vector3.up },
+            new Cell { age = 0, position = Vector3.one * 2, polarity = Vector3.up }
         });
-        
+
         // Init entire bond buffer to invalid
-        compute.SetInt(MaxBondsId, maxBonds);
-        compute.SetBuffer(_initBondsKernel, BondCellsID, _bondCells);
-        compute.SetBuffer(_initBondsKernel, BondRestID, _bondRest);
-        compute.SetBuffer(_initBondsKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_initBondsKernel, IndirectArgsID, _cellComputeArgs);
-        var bondGroups = Mathf.CeilToInt(maxBonds / 64f);
-        compute.Dispatch(_initBondsKernel, bondGroups, 1, 1);
+        compute.SetInt(ShaderID.MaxBonds, maxBonds);
+        compute.SetBuffer(_initBondsKernel, ShaderID.BondCells,   _bondCells);
+        compute.SetBuffer(_initBondsKernel, ShaderID.BondRest,    _bondRest);
+        compute.SetBuffer(_initBondsKernel, ShaderID.CellCount,   _cellCount);
+        compute.SetBuffer(_initBondsKernel, ShaderID.IndirectArgs, _cellComputeArgs);
+        compute.Dispatch(_initBondsKernel, Mathf.CeilToInt(maxBonds / 64f), 1, 1);
     }
 
     private void InitRadixSort()
@@ -337,26 +328,25 @@ public class SplantController : MonoBehaviour
     private void OnValidate()
     {
         // enforce bucket size constrained vars
-        bondRange = Mathf.Clamp(bondRange, 0, bucketSize * 0.5f);
-        cellRadius = Mathf.Clamp(cellRadius, 0, bucketSize * 0.5f);
-        maxStepSize = Mathf.Clamp(maxStepSize, 0, bucketSize * 0.5f);
-        minStepSize = Mathf.Clamp(minStepSize, 0, bucketSize * 0.5f);
+        bondRange               = Mathf.Clamp(bondRange, 0, bucketSize * 0.5f);
+        cellRadius              = Mathf.Clamp(cellRadius, 0, bucketSize * 0.5f);
+        maxStepSize             = Mathf.Clamp(maxStepSize, 0, bucketSize * 0.5f);
+        minStepSize             = Mathf.Clamp(minStepSize, 0, bucketSize * 0.5f);
         neighborCollisionRadius = Mathf.Clamp(neighborCollisionRadius, 0, bucketSize * 0.5f);
-        damping = Mathf.Max(0f, damping);
-        windStrength = Mathf.Max(0f, windStrength);
-        windFrequency = Mathf.Max(0f, windFrequency);
-        windSpeed = Mathf.Max(0f, windSpeed);
-        windVariation = Mathf.Max(0f, windVariation);
-        
+        damping                 = Mathf.Max(0f, damping);
+        windStrength            = Mathf.Max(0f, windStrength);
+        windFrequency           = Mathf.Max(0f, windFrequency);
+        windSpeed               = Mathf.Max(0f, windSpeed);
+        windVariation           = Mathf.Max(0f, windVariation);
+
         // ensure bucket table size is a power of 2 (has exactly 1 bit)
         if (!(bucketTableSize > 0 && (bucketTableSize & (bucketTableSize - 1)) == 0))
         {
-            // reset
             bucketTableSize = 1 << 18;
         }
-        
-        sdfMaxDistance = Mathf.Max(0f, sdfMaxDistance);
-        sdfMaxBricks = Mathf.Max(1, sdfMaxBricks);
+
+        sdfMaxDistance      = Mathf.Max(0f, sdfMaxDistance);
+        sdfMaxBricks        = Mathf.Max(1, sdfMaxBricks);
         sdfSamplesPerBucket = Mathf.Max(1, sdfSamplesPerBucket);
         InitSdfBricks();
         SetParams();
@@ -402,8 +392,8 @@ public class SplantController : MonoBehaviour
         var proj = GL.GetGPUProjectionMatrix(mainCamera.projectionMatrix, false);
         var invViewProj = (proj * view).inverse;
 
-        raymarchMaterial.SetMatrix(InvViewProjID, invViewProj);
-        raymarchMaterial.SetVector(CameraPosID, mainCamera.transform.position);
+        raymarchMaterial.SetMatrix(ShaderID.InvViewProj, invViewProj);
+        raymarchMaterial.SetVector(ShaderID.CameraPos, mainCamera.transform.position);
 
         Graphics.DrawProcedural(
             raymarchMaterial,
@@ -415,13 +405,13 @@ public class SplantController : MonoBehaviour
 
     private void UpdateTimeParams()
     {
-        compute.SetFloat(DeltaTimeID, Time.deltaTime);
-        compute.SetFloat(TimeID, Time.time);
+        compute.SetFloat(ShaderID.DeltaTime, UnityEngine.Time.deltaTime);
+        compute.SetFloat(ShaderID.Time,      UnityEngine.Time.time);
     }
 
     private void UpdateLightParams()
     {
-        raymarchMaterial.SetVector(LightDirID, -mainLight.transform.forward);
+        raymarchMaterial.SetVector(ShaderID.LightDir, -mainLight.transform.forward);
     }
 
     private void DispatchGrow()
@@ -485,10 +475,7 @@ public class SplantController : MonoBehaviour
             return;
         }
 
-        var groupsX = _sdfBrickDim.x;
-        var groupsY = _sdfBrickDim.y;
-        var groupsZ = _sdfBrickDim.z;
-        compute.Dispatch(_buildSdfBricksKernel, groupsX, groupsY, groupsZ);
+        compute.Dispatch(_buildSdfBricksKernel, _sdfBrickDim.x, _sdfBrickDim.y, _sdfBrickDim.z);
     }
 
     private void DispatchBonds()
@@ -499,74 +486,83 @@ public class SplantController : MonoBehaviour
     private void DispatchPhysics()
     {
         compute.DispatchIndirect(_applyCollisionForcesKernel, _cellComputeArgs);
-        compute.DispatchIndirect(_applyBondForcesKernel, _cellComputeArgs);
-        compute.DispatchIndirect(_resolveForceBufferKernel, _cellComputeArgs);
+        compute.DispatchIndirect(_applyBondForcesKernel,      _cellComputeArgs);
+        compute.DispatchIndirect(_resolveForceBufferKernel,   _cellComputeArgs);
     }
-    
+
     private void SetParams()
     {
-        compute.SetFloat(BondBendStiffnessID, bondBendStiffness);
-        compute.SetFloat(BondLinearStiffnessID, bondLinearStiffness);
-        compute.SetFloat(BondRangeSqID, bondRange * bondRange);
-        compute.SetFloat(BucketSizeID, bucketSize);
-        compute.SetFloat(CellRadiusID, cellRadius);
-        compute.SetFloat(DampingID, damping);
-        compute.SetVector(GravityID, gravity);
-        compute.SetInt(GrowthModeID, (int)growthMode);
-        compute.SetInt(MaxSplitsPerCellID, Mathf.Max(1, splitsPerCell));
-        compute.SetFloat(SplitAgeID, Mathf.Max(0.001f, splitAge));
-        compute.SetFloat(SplitAgeJitterID, Mathf.Max(0f, splitAgeJitter));
-        compute.SetFloat(NeighborRadiusID, neighborCollisionRadius);
-        compute.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
-        compute.SetFloat(RepulsionStrengthID, repulsionStrength);
-        compute.SetVector(WindDirectionID, windDirection);
-        compute.SetFloat(WindStrengthID, windStrength);
-        compute.SetFloat(WindFrequencyID, windFrequency);
-        compute.SetFloat(WindSpeedID, windSpeed);
-        compute.SetFloat(WindVariationID, windVariation);
-        compute.SetInt(BucketTableSizeID, bucketTableSize);
-        compute.SetInt(MaxBondsId, (int)maxCells * (int)maxBondsPerCell);
-        compute.SetInt(MaxBondsPerCellID, (int)maxBondsPerCell);
-        compute.SetInt(MaxCellsID, (int)maxCells);
-        compute.SetVector(BoundsMaxId, bounds.max);
-        compute.SetVector(BoundsMinId, bounds.min);
-        compute.SetFloat(SdfMaxDistanceID, sdfMaxDistance);
-        compute.SetInt(SdfMaxBricksID, Mathf.Max(1, _sdfMaxBricksApplied));
-        compute.SetInts(SdfBucketDimID, _sdfBucketDim.x, _sdfBucketDim.y, _sdfBucketDim.z);
-        compute.SetInts(SdfBucketMinID, _sdfBucketMin.x, _sdfBucketMin.y, _sdfBucketMin.z);
-        compute.SetInts(SdfSampleDimID, _sdfSampleDim.x, _sdfSampleDim.y, _sdfSampleDim.z);
-        compute.SetInts(SdfBrickDimID, _sdfBrickDim.x, _sdfBrickDim.y, _sdfBrickDim.z);
-        compute.SetInts(SdfAtlasBrickDimID, _sdfAtlasBrickDim.x, _sdfAtlasBrickDim.y, _sdfAtlasBrickDim.z);
-        compute.SetInt(SdfSamplesPerBucketID, Mathf.Max(1, sdfSamplesPerBucket));
-        
-        raymarchMaterial.SetFloat(BucketSizeID, bucketSize);
-        raymarchMaterial.SetFloat(CellRadiusID, cellRadius);
-        raymarchMaterial.SetFloat(DebugGradID, debugSdfGrad ? 1f : 0f);
-        raymarchMaterial.SetFloat(DebugAtlasID, debugAtlasSlice ? 1f : 0f);
-        raymarchMaterial.SetFloat(DebugAtlasSliceID, debugAtlasSliceIndex);
-        raymarchMaterial.SetFloat(FresnelPowID, fresnelPow);
-        raymarchMaterial.SetFloat(FresnelStrengthID, fresnelStrength);
-        raymarchMaterial.SetFloat(MaxStepSizeID, maxStepSize);
-        raymarchMaterial.SetFloat(MinStepSizeID, minStepSize);
-        raymarchMaterial.SetFloat(NeighborRadiusSqID, neighborCollisionRadius * neighborCollisionRadius);
-        raymarchMaterial.SetFloat(SSSFalloffID, sssFalloff);
-        raymarchMaterial.SetFloat(SSSStepSizeID, sssStepSize);
-        raymarchMaterial.SetFloat(SSSStrengthID, sssStrength);
-        raymarchMaterial.SetFloat(SurfaceThresholdID, surfaceThreshold);
-        raymarchMaterial.SetInt(BucketTableSizeID, bucketTableSize);
-        raymarchMaterial.SetInt(MaxStepsID, maxSteps);
-        raymarchMaterial.SetInt(SSSStepsID, sssSteps);
-        raymarchMaterial.SetVector(BaseColorID, baseColour);
-        raymarchMaterial.SetVector(BoundsMaxId, bounds.max);
-        raymarchMaterial.SetVector(BoundsMinId, bounds.min);
-        raymarchMaterial.SetVector(SSSColorID, sssColor);
-        raymarchMaterial.SetFloat(SdfMaxDistanceID, sdfMaxDistance);
-        raymarchMaterial.SetVector(SdfBucketMinID, (Vector3)_sdfBucketMin);
-        raymarchMaterial.SetVector(SdfSampleDimID, (Vector3)_sdfSampleDim);
-        raymarchMaterial.SetVector(SdfAtlasBrickDimID, (Vector3)_sdfAtlasBrickDim);
-        raymarchMaterial.SetFloat(SdfSamplesPerBucketID, Mathf.Max(1, sdfSamplesPerBucket));
+        SetComputeParams();
+        SetRaymarchParams();
     }
-    
+
+    private void SetComputeParams()
+    {
+        compute.SetFloat(ShaderID.BondBendStiffness,   bondBendStiffness);
+        compute.SetFloat(ShaderID.BondLinearStiffness, bondLinearStiffness);
+        compute.SetFloat(ShaderID.BondRangeSq,         bondRange * bondRange);
+        compute.SetFloat(ShaderID.BucketSize,          bucketSize);
+        compute.SetFloat(ShaderID.CellRadius,          cellRadius);
+        compute.SetFloat(ShaderID.Damping,             damping);
+        compute.SetVector(ShaderID.Gravity,            gravity);
+        compute.SetInt(ShaderID.GrowthMode,            (int)growthMode);
+        compute.SetInt(ShaderID.MaxSplitsPerCell,      Mathf.Max(1, splitsPerCell));
+        compute.SetFloat(ShaderID.SplitAge,            Mathf.Max(0.001f, splitAge));
+        compute.SetFloat(ShaderID.SplitAgeJitter,      Mathf.Max(0f, splitAgeJitter));
+        compute.SetFloat(ShaderID.NeighborRadius,      neighborCollisionRadius);
+        compute.SetFloat(ShaderID.NeighborRadiusSq,    neighborCollisionRadius * neighborCollisionRadius);
+        compute.SetFloat(ShaderID.RepulsionStrength,   repulsionStrength);
+        compute.SetVector(ShaderID.WindDirection,      windDirection);
+        compute.SetFloat(ShaderID.WindStrength,        windStrength);
+        compute.SetFloat(ShaderID.WindFrequency,       windFrequency);
+        compute.SetFloat(ShaderID.WindSpeed,           windSpeed);
+        compute.SetFloat(ShaderID.WindVariation,       windVariation);
+        compute.SetInt(ShaderID.BucketTableSize,       bucketTableSize);
+        compute.SetInt(ShaderID.MaxBonds,              (int)maxCells * (int)maxBondsPerCell);
+        compute.SetInt(ShaderID.MaxBondsPerCell,       (int)maxBondsPerCell);
+        compute.SetInt(ShaderID.MaxCells,              (int)maxCells);
+        compute.SetVector(ShaderID.BoundsMax,          bounds.max);
+        compute.SetVector(ShaderID.BoundsMin,          bounds.min);
+        compute.SetFloat(ShaderID.SdfMaxDistance,      sdfMaxDistance);
+        compute.SetInt(ShaderID.SdfMaxBricks,          Mathf.Max(1, _sdfMaxBricksApplied));
+        compute.SetInts(ShaderID.SdfBucketDim,         _sdfBucketDim.x, _sdfBucketDim.y, _sdfBucketDim.z);
+        compute.SetInts(ShaderID.SdfBucketMin,         _sdfBucketMin.x, _sdfBucketMin.y, _sdfBucketMin.z);
+        compute.SetInts(ShaderID.SdfSampleDim,         _sdfSampleDim.x, _sdfSampleDim.y, _sdfSampleDim.z);
+        compute.SetInts(ShaderID.SdfBrickDim,          _sdfBrickDim.x,  _sdfBrickDim.y,  _sdfBrickDim.z);
+        compute.SetInts(ShaderID.SdfAtlasBrickDim,     _sdfAtlasBrickDim.x, _sdfAtlasBrickDim.y, _sdfAtlasBrickDim.z);
+        compute.SetInt(ShaderID.SdfSamplesPerBucket,   Mathf.Max(1, sdfSamplesPerBucket));
+    }
+
+    private void SetRaymarchParams()
+    {
+        raymarchMaterial.SetFloat(ShaderID.BucketSize,          bucketSize);
+        raymarchMaterial.SetFloat(ShaderID.CellRadius,          cellRadius);
+        raymarchMaterial.SetFloat(ShaderID.DebugGrad,           debugSdfGrad ? 1f : 0f);
+        raymarchMaterial.SetFloat(ShaderID.DebugAtlas,          debugAtlasSlice ? 1f : 0f);
+        raymarchMaterial.SetFloat(ShaderID.DebugAtlasSlice,     debugAtlasSliceIndex);
+        raymarchMaterial.SetFloat(ShaderID.FresnelPow,          fresnelPow);
+        raymarchMaterial.SetFloat(ShaderID.FresnelStrength,     fresnelStrength);
+        raymarchMaterial.SetFloat(ShaderID.MaxStepSize,         maxStepSize);
+        raymarchMaterial.SetFloat(ShaderID.MinStepSize,         minStepSize);
+        raymarchMaterial.SetFloat(ShaderID.NeighborRadiusSq,    neighborCollisionRadius * neighborCollisionRadius);
+        raymarchMaterial.SetFloat(ShaderID.SSSFalloff,          sssFalloff);
+        raymarchMaterial.SetFloat(ShaderID.SSSStepSize,         sssStepSize);
+        raymarchMaterial.SetFloat(ShaderID.SSSStrength,         sssStrength);
+        raymarchMaterial.SetFloat(ShaderID.SurfaceThreshold,    surfaceThreshold);
+        raymarchMaterial.SetInt(ShaderID.BucketTableSize,       bucketTableSize);
+        raymarchMaterial.SetInt(ShaderID.MaxSteps,              maxSteps);
+        raymarchMaterial.SetInt(ShaderID.SSSSteps,              sssSteps);
+        raymarchMaterial.SetVector(ShaderID.BaseColor,          baseColour);
+        raymarchMaterial.SetVector(ShaderID.BoundsMax,          bounds.max);
+        raymarchMaterial.SetVector(ShaderID.BoundsMin,          bounds.min);
+        raymarchMaterial.SetVector(ShaderID.SSSColor,           sssColor);
+        raymarchMaterial.SetFloat(ShaderID.SdfMaxDistance,      sdfMaxDistance);
+        raymarchMaterial.SetVector(ShaderID.SdfBucketMin,       (Vector3)_sdfBucketMin);
+        raymarchMaterial.SetVector(ShaderID.SdfSampleDim,       (Vector3)_sdfSampleDim);
+        raymarchMaterial.SetVector(ShaderID.SdfAtlasBrickDim,   (Vector3)_sdfAtlasBrickDim);
+        raymarchMaterial.SetFloat(ShaderID.SdfSamplesPerBucket, Mathf.Max(1, sdfSamplesPerBucket));
+    }
+
     private void SetComputeBuffers()
     {
         if (_cellComputeArgs == null)
@@ -574,8 +570,8 @@ public class SplantController : MonoBehaviour
             return;
         }
 
-        compute.SetBuffer(_prepareIndirectArgsKernel, IndirectArgsID, _cellComputeArgs);
-        compute.SetBuffer(_prepareIndirectArgsKernel, CellCountID, _cellCount);
+        compute.SetBuffer(_prepareIndirectArgsKernel, ShaderID.IndirectArgs, _cellComputeArgs);
+        compute.SetBuffer(_prepareIndirectArgsKernel, ShaderID.CellCount,    _cellCount);
 
         SetAddBondsKernelBuffers();
         SetApplyBondForcesKernelBuffers();
@@ -586,85 +582,85 @@ public class SplantController : MonoBehaviour
         SetClearBucketsKernelBuffers();
         SetGrowKernelBuffers();
         SetResolveForceKernelBuffers();
-        
+
         // Compaction kernels
-        compute.SetBuffer(_compactCellsKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_compactCellsKernel, CellRemapID, _cellRemap);
-        compute.SetBuffer(_compactCellsKernel, CellsID, _cells);
-        compute.SetBuffer(_compactCellsKernel, CompactCountID, _compactCount);
-        
-        compute.SetBuffer(_writeCompactedKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_writeCompactedKernel, CellRemapID, _cellRemap);
-        compute.SetBuffer(_writeCompactedKernel, CellsID, _cells);
-        compute.SetBuffer(_writeCompactedKernel, CellsTempID, _cellsTemp);
-        compute.SetBuffer(_writeCompactedKernel, VelocitiesID, _velocities);
-        compute.SetBuffer(_writeCompactedKernel, VelocitiesTempID, _velocitiesTemp);
-        
-        compute.SetBuffer(_remapBondsKernel, BondCellsID, _bondCells);
-        compute.SetBuffer(_remapBondsKernel, BondRestID, _bondRest);
-        compute.SetBuffer(_remapBondsKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_remapBondsKernel, CellRemapID, _cellRemap);
-        compute.SetBuffer(_remapBondsKernel, CellsID, _cells);
-        compute.SetBuffer(_remapBondsKernel, CompactCountID, _compactCount);
-        
-        compute.SetBuffer(_copyBackKernel, CellsID, _cells);
-        compute.SetBuffer(_copyBackKernel, CellsTempID, _cellsTemp);
-        compute.SetBuffer(_copyBackKernel, VelocitiesID, _velocities);
-        compute.SetBuffer(_copyBackKernel, VelocitiesTempID, _velocitiesTemp);
-        compute.SetBuffer(_copyBackKernel, CompactCountID, _compactCount);
-        
-        compute.SetBuffer(_finalizeCompactKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_finalizeCompactKernel, CompactCountID, _compactCount);
+        compute.SetBuffer(_compactCellsKernel, ShaderID.CellCount,    _cellCount);
+        compute.SetBuffer(_compactCellsKernel, ShaderID.CellRemap,    _cellRemap);
+        compute.SetBuffer(_compactCellsKernel, ShaderID.Cells,        _cells);
+        compute.SetBuffer(_compactCellsKernel, ShaderID.CompactCount, _compactCount);
+
+        compute.SetBuffer(_writeCompactedKernel, ShaderID.CellCount,      _cellCount);
+        compute.SetBuffer(_writeCompactedKernel, ShaderID.CellRemap,      _cellRemap);
+        compute.SetBuffer(_writeCompactedKernel, ShaderID.Cells,          _cells);
+        compute.SetBuffer(_writeCompactedKernel, ShaderID.CellsTemp,      _cellsTemp);
+        compute.SetBuffer(_writeCompactedKernel, ShaderID.Velocities,     _velocities);
+        compute.SetBuffer(_writeCompactedKernel, ShaderID.VelocitiesTemp, _velocitiesTemp);
+
+        compute.SetBuffer(_remapBondsKernel, ShaderID.BondCells,    _bondCells);
+        compute.SetBuffer(_remapBondsKernel, ShaderID.BondRest,     _bondRest);
+        compute.SetBuffer(_remapBondsKernel, ShaderID.CellCount,    _cellCount);
+        compute.SetBuffer(_remapBondsKernel, ShaderID.CellRemap,    _cellRemap);
+        compute.SetBuffer(_remapBondsKernel, ShaderID.Cells,        _cells);
+        compute.SetBuffer(_remapBondsKernel, ShaderID.CompactCount, _compactCount);
+
+        compute.SetBuffer(_copyBackKernel, ShaderID.Cells,          _cells);
+        compute.SetBuffer(_copyBackKernel, ShaderID.CellsTemp,      _cellsTemp);
+        compute.SetBuffer(_copyBackKernel, ShaderID.Velocities,     _velocities);
+        compute.SetBuffer(_copyBackKernel, ShaderID.VelocitiesTemp, _velocitiesTemp);
+        compute.SetBuffer(_copyBackKernel, ShaderID.CompactCount,   _compactCount);
+
+        compute.SetBuffer(_finalizeCompactKernel, ShaderID.CellCount,    _cellCount);
+        compute.SetBuffer(_finalizeCompactKernel, ShaderID.CompactCount, _compactCount);
     }
-    
+
     private void SetAddBondsKernelBuffers()
     {
-        compute.SetBuffer(_addBondsKernel, BondCellsID, _bondCells);
-        compute.SetBuffer(_addBondsKernel, BondRestID, _bondRest);
-        compute.SetBuffer(_addBondsKernel, BucketEndID, _bucketEnd);
-        compute.SetBuffer(_addBondsKernel, BucketStartID, _bucketStart);
-        compute.SetBuffer(_addBondsKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_addBondsKernel, CellFullHashID, _cellFullHashes);
-        compute.SetBuffer(_addBondsKernel, CellIndicesID, _cellIndices);
-        compute.SetBuffer(_addBondsKernel, CellsID, _cells);
+        compute.SetBuffer(_addBondsKernel, ShaderID.BondCells,    _bondCells);
+        compute.SetBuffer(_addBondsKernel, ShaderID.BondRest,     _bondRest);
+        compute.SetBuffer(_addBondsKernel, ShaderID.BucketEnd,    _bucketEnd);
+        compute.SetBuffer(_addBondsKernel, ShaderID.BucketStart,  _bucketStart);
+        compute.SetBuffer(_addBondsKernel, ShaderID.CellCount,    _cellCount);
+        compute.SetBuffer(_addBondsKernel, ShaderID.CellFullHash, _cellFullHashes);
+        compute.SetBuffer(_addBondsKernel, ShaderID.CellIndices,  _cellIndices);
+        compute.SetBuffer(_addBondsKernel, ShaderID.Cells,        _cells);
     }
 
     private void SetApplyBondForcesKernelBuffers()
     {
-        compute.SetBuffer(_applyBondForcesKernel, BondCellsID, _bondCells);
-        compute.SetBuffer(_applyBondForcesKernel, BondRestID, _bondRest);
-        compute.SetBuffer(_applyBondForcesKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_applyBondForcesKernel, CellsID, _cells);
-        compute.SetBuffer(_applyBondForcesKernel, ForceBufferID, _forceBuffer);
+        compute.SetBuffer(_applyBondForcesKernel, ShaderID.BondCells,   _bondCells);
+        compute.SetBuffer(_applyBondForcesKernel, ShaderID.BondRest,    _bondRest);
+        compute.SetBuffer(_applyBondForcesKernel, ShaderID.CellCount,   _cellCount);
+        compute.SetBuffer(_applyBondForcesKernel, ShaderID.Cells,       _cells);
+        compute.SetBuffer(_applyBondForcesKernel, ShaderID.ForceBuffer, _forceBuffer);
     }
 
     private void SetApplyCollisionForcesKernelBuffers()
     {
-        compute.SetBuffer(_applyCollisionForcesKernel, BucketEndID, _bucketEnd);
-        compute.SetBuffer(_applyCollisionForcesKernel, BucketStartID, _bucketStart);
-        compute.SetBuffer(_applyCollisionForcesKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_applyCollisionForcesKernel, CellFullHashID, _cellFullHashes);
-        compute.SetBuffer(_applyCollisionForcesKernel, CellIndicesID, _cellIndices);
-        compute.SetBuffer(_applyCollisionForcesKernel, CellsID, _cells);
-        compute.SetBuffer(_applyCollisionForcesKernel, ForceBufferID, _forceBuffer);
+        compute.SetBuffer(_applyCollisionForcesKernel, ShaderID.BucketEnd,    _bucketEnd);
+        compute.SetBuffer(_applyCollisionForcesKernel, ShaderID.BucketStart,  _bucketStart);
+        compute.SetBuffer(_applyCollisionForcesKernel, ShaderID.CellCount,    _cellCount);
+        compute.SetBuffer(_applyCollisionForcesKernel, ShaderID.CellFullHash, _cellFullHashes);
+        compute.SetBuffer(_applyCollisionForcesKernel, ShaderID.CellIndices,  _cellIndices);
+        compute.SetBuffer(_applyCollisionForcesKernel, ShaderID.Cells,        _cells);
+        compute.SetBuffer(_applyCollisionForcesKernel, ShaderID.ForceBuffer,  _forceBuffer);
     }
 
     private void SetBuildBucketKernelBuffers()
     {
-        compute.SetBuffer(_buildBucketKernel, BucketEndID, _bucketEnd);
-        compute.SetBuffer(_buildBucketKernel, BucketStartID, _bucketStart);
-        compute.SetBuffer(_buildBucketKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_buildBucketKernel, CellTableKeysID, _cellTableKeys);
+        compute.SetBuffer(_buildBucketKernel, ShaderID.BucketEnd,      _bucketEnd);
+        compute.SetBuffer(_buildBucketKernel, ShaderID.BucketStart,    _bucketStart);
+        compute.SetBuffer(_buildBucketKernel, ShaderID.CellCount,      _cellCount);
+        compute.SetBuffer(_buildBucketKernel, ShaderID.CellTableKeys,  _cellTableKeys);
     }
 
     private void SetBuildSpatialKernelBuffers()
     {
-        compute.SetBuffer(_buildSpatialKernel, BucketCheckId, _bucketCheck);
-        compute.SetBuffer(_buildSpatialKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_buildSpatialKernel, CellFullHashID, _cellFullHashes);
-        compute.SetBuffer(_buildSpatialKernel, CellIndicesID, _cellIndices);
-        compute.SetBuffer(_buildSpatialKernel, CellTableKeysID, _cellTableKeys);
-        compute.SetBuffer(_buildSpatialKernel, CellsID, _cells);
+        compute.SetBuffer(_buildSpatialKernel, ShaderID.BucketCheck,   _bucketCheck);
+        compute.SetBuffer(_buildSpatialKernel, ShaderID.CellCount,     _cellCount);
+        compute.SetBuffer(_buildSpatialKernel, ShaderID.CellFullHash,  _cellFullHashes);
+        compute.SetBuffer(_buildSpatialKernel, ShaderID.CellIndices,   _cellIndices);
+        compute.SetBuffer(_buildSpatialKernel, ShaderID.CellTableKeys, _cellTableKeys);
+        compute.SetBuffer(_buildSpatialKernel, ShaderID.Cells,         _cells);
     }
 
     private void SetBuildSdfKernelBuffers()
@@ -674,125 +670,109 @@ public class SplantController : MonoBehaviour
             return;
         }
 
-        compute.SetTexture(_buildSdfBricksKernel, SdfBrickAtlasID, _sdfBrickAtlas);
-        compute.SetTexture(_buildSdfBricksKernel, SdfBrickIndexID, _sdfBrickIndex);
-        compute.SetBuffer(_buildSdfBricksKernel, SdfBrickCounterID, _sdfBrickCounter);
-        compute.SetBuffer(_buildSdfBricksKernel, SdfBucketCheckRoID, _bucketCheck);
-        compute.SetBuffer(_buildSdfBricksKernel, SdfBucketEndRoID, _bucketEnd);
-        compute.SetBuffer(_buildSdfBricksKernel, SdfBucketStartRoID, _bucketStart);
-        compute.SetBuffer(_buildSdfBricksKernel, SdfCellFullHashRoID, _cellFullHashes);
-        compute.SetBuffer(_buildSdfBricksKernel, SdfCellIndicesRoID, _cellIndices);
-        compute.SetBuffer(_buildSdfBricksKernel, SdfCellsRoID, _cells);
+        compute.SetTexture(_buildSdfBricksKernel, ShaderID.SdfBrickAtlas,      _sdfBrickAtlas);
+        compute.SetTexture(_buildSdfBricksKernel, ShaderID.SdfBrickIndex,      _sdfBrickIndex);
+        compute.SetBuffer(_buildSdfBricksKernel,  ShaderID.SdfBrickCounter,    _sdfBrickCounter);
+        compute.SetBuffer(_buildSdfBricksKernel,  ShaderID.SdfBucketCheckRo,   _bucketCheck);
+        compute.SetBuffer(_buildSdfBricksKernel,  ShaderID.SdfBucketEndRo,     _bucketEnd);
+        compute.SetBuffer(_buildSdfBricksKernel,  ShaderID.SdfBucketStartRo,   _bucketStart);
+        compute.SetBuffer(_buildSdfBricksKernel,  ShaderID.SdfCellFullHashRo,  _cellFullHashes);
+        compute.SetBuffer(_buildSdfBricksKernel,  ShaderID.SdfCellIndicesRo,   _cellIndices);
+        compute.SetBuffer(_buildSdfBricksKernel,  ShaderID.SdfCellsRo,         _cells);
 
-        compute.SetTexture(_clearSdfIndexKernel, SdfBrickIndexID, _sdfBrickIndex);
+        compute.SetTexture(_clearSdfIndexKernel, ShaderID.SdfBrickIndex, _sdfBrickIndex);
     }
 
     private void SetClearBucketsKernelBuffers()
     {
-        compute.SetBuffer(_clearBucketsKernel, BucketCheckId, _bucketCheck);
-        compute.SetBuffer(_clearBucketsKernel, BucketEndID, _bucketEnd);
-        compute.SetBuffer(_clearBucketsKernel, BucketStartID, _bucketStart);
+        compute.SetBuffer(_clearBucketsKernel, ShaderID.BucketCheck, _bucketCheck);
+        compute.SetBuffer(_clearBucketsKernel, ShaderID.BucketEnd,   _bucketEnd);
+        compute.SetBuffer(_clearBucketsKernel, ShaderID.BucketStart, _bucketStart);
     }
 
     private void SetGrowKernelBuffers()
     {
-        compute.SetBuffer(_growKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_growKernel, CellsID, _cells);
-        compute.SetBuffer(_growKernel, VelocitiesID, _velocities);
+        compute.SetBuffer(_growKernel, ShaderID.CellCount,  _cellCount);
+        compute.SetBuffer(_growKernel, ShaderID.Cells,      _cells);
+        compute.SetBuffer(_growKernel, ShaderID.Velocities, _velocities);
     }
 
     private void SetResolveForceKernelBuffers()
     {
-        compute.SetBuffer(_resolveForceBufferKernel, CellCountID, _cellCount);
-        compute.SetBuffer(_resolveForceBufferKernel, CellsID, _cells);
-        compute.SetBuffer(_resolveForceBufferKernel, ForceBufferID, _forceBuffer);
-        compute.SetBuffer(_resolveForceBufferKernel, VelocitiesID, _velocities);
+        compute.SetBuffer(_resolveForceBufferKernel, ShaderID.CellCount,  _cellCount);
+        compute.SetBuffer(_resolveForceBufferKernel, ShaderID.Cells,      _cells);
+        compute.SetBuffer(_resolveForceBufferKernel, ShaderID.ForceBuffer, _forceBuffer);
+        compute.SetBuffer(_resolveForceBufferKernel, ShaderID.Velocities, _velocities);
     }
 
     private void SetRaymarchBuffers()
     {
-        raymarchMaterial.SetBuffer(BucketCheckId, _bucketCheck);
-        raymarchMaterial.SetBuffer(BucketEndID, _bucketEnd);
-        raymarchMaterial.SetBuffer(BucketStartID, _bucketStart);
-        raymarchMaterial.SetBuffer(CellFullHashID, _cellFullHashes);
-        raymarchMaterial.SetBuffer(CellIndicesID, _cellIndices);
-        raymarchMaterial.SetBuffer(CellsID, _cells);
+        raymarchMaterial.SetBuffer(ShaderID.BucketCheck,  _bucketCheck);
+        raymarchMaterial.SetBuffer(ShaderID.BucketEnd,    _bucketEnd);
+        raymarchMaterial.SetBuffer(ShaderID.BucketStart,  _bucketStart);
+        raymarchMaterial.SetBuffer(ShaderID.CellFullHash, _cellFullHashes);
+        raymarchMaterial.SetBuffer(ShaderID.CellIndices,  _cellIndices);
+        raymarchMaterial.SetBuffer(ShaderID.Cells,        _cells);
         if (_sdfBrickAtlas != null)
         {
-            raymarchMaterial.SetTexture(SdfBrickAtlasID, _sdfBrickAtlas);
+            raymarchMaterial.SetTexture(ShaderID.SdfBrickAtlas, _sdfBrickAtlas);
             if (_sdfBrickIndex != null)
             {
-                raymarchMaterial.SetTexture(SdfBrickIndexID, _sdfBrickIndex);
+                raymarchMaterial.SetTexture(ShaderID.SdfBrickIndex, _sdfBrickIndex);
             }
         }
     }
 
     private void ReleaseBuffers()
     {
-        _bondCells?.Release();
-        _bondCells = null;
-        _bondRest?.Release();
-        _bondRest = null;
-        _bucketCheck?.Release();
-        _bucketCheck = null;
-        _bucketEnd?.Release();
-        _bucketEnd = null;
-        _bucketStart?.Release();
-        _bucketStart = null;
-        _cellComputeArgs?.Release();
-        _cellComputeArgs = null;
-        _cellCount?.Release();
-        _cellCount = null;
-        _cellFullHashes?.Release();
-        _cellFullHashes = null;
-        _cellIndices?.Release();
-        _cellIndices = null;
-        _cellRemap?.Release();
-        _cellRemap = null;
-        _cellTableKeys?.Release();
-        _cellTableKeys = null;
-        _cells?.Release();
-        _cells = null;
-        _cellsTemp?.Release();
-        _cellsTemp = null;
-        _compactCount?.Release();
-        _compactCount = null;
-        _forceBuffer?.Release();
-        _forceBuffer = null;
-        _velocities?.Release();
-        _velocities = null;
-        _velocitiesTemp?.Release();
-        _velocitiesTemp = null;
-        _temp0?.Release();
-        _temp0 = null;
-        _temp1?.Release();
-        _temp1 = null;
-        _temp2?.Release();
-        _temp2 = null;
-        _temp3?.Release();
-        _temp3 = null;
-        _sdfBrickCounter?.Release();
-        _sdfBrickCounter = null;
+        Release(ref _bondCells);
+        Release(ref _bondRest);
+        Release(ref _bucketCheck);
+        Release(ref _bucketEnd);
+        Release(ref _bucketStart);
+        Release(ref _cellComputeArgs);
+        Release(ref _cellCount);
+        Release(ref _cellFullHashes);
+        Release(ref _cellIndices);
+        Release(ref _cellRemap);
+        Release(ref _cellTableKeys);
+        Release(ref _cells);
+        Release(ref _cellsTemp);
+        Release(ref _compactCount);
+        Release(ref _forceBuffer);
+        Release(ref _velocities);
+        Release(ref _velocitiesTemp);
+        Release(ref _temp0);
+        Release(ref _temp1);
+        Release(ref _temp2);
+        Release(ref _temp3);
+        Release(ref _sdfBrickCounter);
         ReleaseSdfTextures(!Application.isPlaying);
     }
-    
+
+    private static void Release(ref ComputeBuffer buffer)
+    {
+        buffer?.Release();
+        buffer = null;
+    }
+
     private void CompactCells()
     {
         // Reset compact counter
         _compactCount.SetData(new[] { 0u });
-        
+
         // Pass 1: Mark alive cells and assign new indices
         compute.DispatchIndirect(_compactCellsKernel, _cellComputeArgs);
-        
+
         // Pass 2: Write to temp buffer
         compute.DispatchIndirect(_writeCompactedKernel, _cellComputeArgs);
-        
+
         // Bond Pass
         compute.DispatchIndirect(_remapBondsKernel, _cellComputeArgs);
-        
+
         // Pass 3: Copy back
         compute.DispatchIndirect(_copyBackKernel, _cellComputeArgs);
-        
+
         // Pass 4: Update cell_count
         compute.Dispatch(_finalizeCompactKernel, 1, 1, 1);
     }
@@ -804,9 +784,9 @@ public class SplantController : MonoBehaviour
             _sdfBucketMin = Vector3Int.zero;
             _sdfBucketDim = Vector3Int.one;
             _sdfSampleDim = Vector3Int.one;
-            _sdfBrickDim = Vector3Int.one;
+            _sdfBrickDim  = Vector3Int.one;
             _sdfAtlasBrickDim = Vector3Int.one;
-            _sdfAtlasTexDim = Vector3Int.one;
+            _sdfAtlasTexDim   = Vector3Int.one;
             _sdfMaxBricksApplied = 1;
             return;
         }
@@ -845,7 +825,7 @@ public class SplantController : MonoBehaviour
         var depth = Mathf.CeilToInt(targetBricks / (float)(side * side));
         // Pack the atlas into a near-cubic grid of bricks for predictable layout.
         _sdfAtlasBrickDim = new Vector3Int(side, side, Mathf.Max(1, depth));
-        _sdfAtlasTexDim = _sdfAtlasBrickDim * SdfBrickSize;
+        _sdfAtlasTexDim   = _sdfAtlasBrickDim * SdfBrickSize;
 
         if (!Application.isPlaying)
         {
@@ -874,27 +854,27 @@ public class SplantController : MonoBehaviour
 
         var atlasDesc = new RenderTextureDescriptor(_sdfAtlasTexDim.x, _sdfAtlasTexDim.y, GraphicsFormat.R8_UNorm, 0)
         {
-            dimension = TextureDimension.Tex3D,
-            volumeDepth = _sdfAtlasTexDim.z,
+            dimension     = TextureDimension.Tex3D,
+            volumeDepth   = _sdfAtlasTexDim.z,
             enableRandomWrite = true
         };
         _sdfBrickAtlas = new RenderTexture(atlasDesc)
         {
             filterMode = FilterMode.Point,
-            wrapMode = TextureWrapMode.Clamp
+            wrapMode   = TextureWrapMode.Clamp
         };
         _sdfBrickAtlas.Create();
 
         var indexDesc = new RenderTextureDescriptor(_sdfBrickDim.x, _sdfBrickDim.y, GraphicsFormat.R32_UInt, 0)
         {
-            dimension = TextureDimension.Tex3D,
-            volumeDepth = _sdfBrickDim.z,
+            dimension     = TextureDimension.Tex3D,
+            volumeDepth   = _sdfBrickDim.z,
             enableRandomWrite = true
         };
         _sdfBrickIndex = new RenderTexture(indexDesc)
         {
             filterMode = FilterMode.Point,
-            wrapMode = TextureWrapMode.Clamp
+            wrapMode   = TextureWrapMode.Clamp
         };
         _sdfBrickIndex.Create();
 
@@ -909,10 +889,12 @@ public class SplantController : MonoBehaviour
         }
 
         _sdfBrickCounter.SetData(new[] { 0u });
-        var groupsX = Mathf.CeilToInt(_sdfBrickDim.x / 4f);
-        var groupsY = Mathf.CeilToInt(_sdfBrickDim.y / 4f);
-        var groupsZ = Mathf.CeilToInt(_sdfBrickDim.z / 4f);
-        compute.Dispatch(_clearSdfIndexKernel, groupsX, groupsY, groupsZ);
+        compute.Dispatch(
+            _clearSdfIndexKernel,
+            Mathf.CeilToInt(_sdfBrickDim.x / 4f),
+            Mathf.CeilToInt(_sdfBrickDim.y / 4f),
+            Mathf.CeilToInt(_sdfBrickDim.z / 4f)
+        );
     }
 
     private void ReleaseSdfTextures(bool immediate)
@@ -920,39 +902,20 @@ public class SplantController : MonoBehaviour
         if (_sdfBrickAtlas != null)
         {
             _sdfBrickAtlas.Release();
-            if (immediate)
-            {
-                DestroyImmediate(_sdfBrickAtlas);
-            }
-            else
-            {
-                Destroy(_sdfBrickAtlas);
-            }
+            if (immediate) DestroyImmediate(_sdfBrickAtlas); else Destroy(_sdfBrickAtlas);
             _sdfBrickAtlas = null;
         }
         if (_sdfBrickIndex != null)
         {
             _sdfBrickIndex.Release();
-            if (immediate)
-            {
-                DestroyImmediate(_sdfBrickIndex);
-            }
-            else
-            {
-                Destroy(_sdfBrickIndex);
-            }
+            if (immediate) DestroyImmediate(_sdfBrickIndex); else Destroy(_sdfBrickIndex);
             _sdfBrickIndex = null;
         }
     }
 
     private void EnsureBuffers()
     {
-        if (!Application.isPlaying)
-        {
-            return;
-        }
-
-        if (_cellComputeArgs != null)
+        if (!Application.isPlaying || _cellComputeArgs != null)
         {
             return;
         }
